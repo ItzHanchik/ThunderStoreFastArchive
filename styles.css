@@ -132,6 +132,21 @@ textarea.code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-s
 .pill-err{color:var(--err);border-color:rgba(255,92,92,.35);background:rgba(255,92,92,.1)}
 .pill-warn{color:var(--warn);border-color:rgba(255,176,32,.35);background:rgba(255,176,32,.1)}
 
+/* ---------- games ---------- */
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px}
+.game{
+  display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:12px;cursor:pointer;
+  background:rgba(255,255,255,.04);border:1px solid var(--stroke);transition:.16s;text-align:left;
+  font-family:inherit;color:var(--text);
+}
+.game:hover{background:rgba(255,255,255,.09);border-color:var(--stroke-2);transform:translateY(-1px)}
+.game.sel{border-color:var(--accent);background:rgba(79,124,255,.14);box-shadow:0 0 0 3px rgba(79,124,255,.12)}
+.game .g-emoji{font-size:20px;line-height:1}
+.game .g-meta{min-width:0}
+.game .g-name{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.game .g-loader{font-size:10.5px;color:var(--muted);margin-top:2px}
+.game.sel .g-loader{color:#9fc0ff}
+
 /* ---------- dropzone ---------- */
 .dropzone{
   border:1.5px dashed rgba(255,255,255,.2); border-radius:14px; padding:28px 18px; text-align:center;

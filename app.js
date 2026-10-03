@@ -13,14 +13,90 @@
   const DEP_RE = /^[a-zA-Z0-9_]+-[a-zA-Z0-9_]+-(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
   const STORAGE_KEY = 'tsfa.profile.v1';
 
-  const PRESETS = [
-    ['BepInEx 5 (общий)', 'BepInEx-BepInExPack-5.4.2100'],
-    ['BepInEx (Lethal Company)', 'BepInEx-BepInExPack-5.4.2100'],
-    ['MMHOOK / HookGenPatcher', 'HookGenPatcher-HookGenPatcher-0.0.5'],
-    ['LCAPI / LethalLib', 'Evaisa-LethalLib-0.16.1'],
-    ['R2API', 'tristanmcpherson-R2API-5.0.12'],
-    ['Jotunn (Valheim)', 'ValheimModding-Jotunn-2.20.1'],
-  ];
+  // ---------- пути установки по загрузчику ----------
+  const PATHS = {
+    bepinex: [
+      ['BepInEx/plugins', 'BepInEx/plugins/ — обычный плагин (рекомендуется)'],
+      ['BepInEx/patchers', 'BepInEx/patchers/ — preloader-патчер'],
+      ['BepInEx/config', 'BepInEx/config/ — готовые конфиги'],
+      ['', 'Корень архива — рядом с manifest.json'],
+      ['custom', 'Своя папка…'],
+    ],
+    melonloader: [
+      ['Mods', 'Mods/ — обычный MelonLoader-мод (рекомендуется)'],
+      ['Plugins', 'Plugins/ — MelonLoader-плагин (грузится раньше мода)'],
+      ['UserLibs', 'UserLibs/ — вспомогательные библиотеки'],
+      ['UserData', 'UserData/ — ассеты, конфиги, палеты'],
+      ['', 'Корень архива — рядом с manifest.json'],
+      ['custom', 'Своя папка…'],
+    ],
+    none: [
+      ['', 'Корень архива — рядом с manifest.json'],
+      ['custom', 'Своя папка…'],
+    ],
+  };
+
+  // ---------- игры ----------
+  const GAMES = {
+    bonelab: {
+      title: 'BONELAB', emoji: '🦴', loader: 'melonloader', community: 'bonelab',
+      note: 'MelonLoader раскладывает содержимое в <code>Mods/&lt;Author-ModName&gt;/</code>. Код-моды — в <code>Mods/</code>, ассеты и палеты — в <code>UserData/</code>.',
+      deps: [
+        ['MelonLoader 0.6.6', 'LavaGang-MelonLoader-0.6.6'],
+        ['MelonLoader 0.7.3 (свежий)', 'LavaGang-MelonLoader-0.7.3'],
+        ['BoneLib', 'gnonme-BoneLib-3.1.3'],
+        ['Fusion', 'Lakatrazz-Fusion-1.9.2'],
+      ],
+      defaultDeps: ['LavaGang-MelonLoader-0.6.6', 'gnonme-BoneLib-3.1.3'],
+    },
+    boneworks: {
+      title: 'BONEWORKS', emoji: '🔩', loader: 'melonloader', community: 'boneworks',
+      note: 'BONEWORKS-моды собраны под MelonLoader <b>0.5.7</b> — более новые версии ломают совместимость.',
+      deps: [['MelonLoader 0.5.7', 'LavaGang-MelonLoader-0.5.7']],
+      defaultDeps: ['LavaGang-MelonLoader-0.5.7'],
+    },
+    lethal: {
+      title: 'Lethal Company', emoji: '🛸', loader: 'bepinex', community: 'lethal-company',
+      note: 'Классический BepInEx 5: <code>.dll</code> кладётся в <code>BepInEx/plugins</code>.',
+      deps: [
+        ['BepInExPack', 'BepInEx-BepInExPack-5.4.2100'],
+        ['LethalLib', 'Evaisa-LethalLib-0.16.1'],
+        ['MMHOOK', 'Evaisa-HookGenPatcher-0.0.5'],
+        ['LC_API', '2018-LC_API-3.4.2'],
+      ],
+      defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
+    },
+    repo: {
+      title: 'R.E.P.O.', emoji: '🤖', loader: 'bepinex', community: 'repo',
+      note: 'BepInEx 5, плагины в <code>BepInEx/plugins</code>.',
+      deps: [['BepInExPack', 'BepInEx-BepInExPack-5.4.2100'], ['REPOLib', 'Zehs-REPOLib-2.1.0']],
+      defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
+    },
+    valheim: {
+      title: 'Valheim', emoji: '⚔️', loader: 'bepinex', community: 'valheim',
+      note: 'У Valheim свой BepInEx-пак от denikson.',
+      deps: [['BepInExPack Valheim', 'denikson-BepInExPack_Valheim-5.4.2202'], ['Jotunn', 'ValheimModding-Jotunn-2.20.1']],
+      defaultDeps: ['denikson-BepInExPack_Valheim-5.4.2202'],
+    },
+    ror2: {
+      title: 'Risk of Rain 2', emoji: '🌧️', loader: 'bepinex', community: 'riskofrain2',
+      note: 'BepInEx + R2API — стандартный стек RoR2.',
+      deps: [['BepInExPack', 'bbepis-BepInExPack-5.4.2113'], ['R2API', 'tristanmcpherson-R2API-5.0.12']],
+      defaultDeps: ['bbepis-BepInExPack-5.4.2113'],
+    },
+    other: {
+      title: 'Другая игра', emoji: '🎲', loader: 'bepinex', community: '',
+      note: 'Общий BepInEx-профиль. Зависимости и путь можно задать вручную.',
+      deps: [['BepInExPack', 'BepInEx-BepInExPack-5.4.2100'], ['MelonLoader', 'LavaGang-MelonLoader-0.7.3']],
+      defaultDeps: [],
+    },
+    raw: {
+      title: 'Без загрузчика', emoji: '📦', loader: 'none', community: '',
+      note: 'Модпак или набор ассетов: файлы ложатся в корень архива.',
+      deps: [],
+      defaultDeps: [],
+    },
+  };
   const PALETTE = ['#4f7cff', '#8b5cf6', '#22d3ee', '#2ed47a', '#ffb020', '#ff5c5c', '#ec4899', '#64748b'];
 
   // ---------- state ----------
@@ -32,7 +108,9 @@
     iconSource: 'generated',
     accent: PALETTE[0],
     activeDoc: 'readme',
+    game: 'bonelab',
   };
+  const game = () => GAMES[state.game] || GAMES.other;
   let uid = 0;
 
   // ---------- helpers ----------
@@ -105,8 +183,67 @@
   function installDir() {
     const v = $('installPath').value;
     if (v === 'custom') return ($('customPath').value || '').replace(/^\/+|\/+$/g, '');
-    if (v === 'patchers') return 'BepInEx/patchers';
     return v;
+  }
+
+  // ============================================================
+  // ИГРЫ / ПРЕСЕТЫ
+  // ============================================================
+  function renderGames() {
+    const box = $('games'); box.innerHTML = '';
+    Object.entries(GAMES).forEach(([key, g]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'game' + (key === state.game ? ' sel' : '');
+      b.innerHTML = `<span class="g-emoji">${g.emoji}</span>
+        <span class="g-meta"><span class="g-name">${esc(g.title)}</span>
+        <span class="g-loader">${g.loader === 'melonloader' ? 'MelonLoader' : g.loader === 'bepinex' ? 'BepInEx' : 'без загрузчика'}</span></span>`;
+      b.onclick = () => selectGame(key, true);
+      box.appendChild(b);
+    });
+  }
+
+  function renderPathOptions(keepValue) {
+    const sel = $('installPath');
+    const prev = keepValue || sel.value;
+    const list = PATHS[game().loader] || PATHS.none;
+    sel.innerHTML = '';
+    list.forEach(([val, label]) => {
+      const o = document.createElement('option');
+      o.value = val; o.textContent = label;
+      sel.appendChild(o);
+    });
+    sel.value = list.some(([v]) => v === prev) ? prev : list[0][0];
+    $('customPath').classList.toggle('hidden', sel.value !== 'custom');
+  }
+
+  function renderDepPresets() {
+    const box = $('depPresets'); box.innerHTML = '';
+    const list = game().deps;
+    if (!list.length) { box.innerHTML = '<span class="help">Для этого профиля пресетов нет — добавь зависимости вручную.</span>'; return; }
+    list.forEach(([label, dep]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = '+ ' + label; b.title = dep;
+      b.onclick = () => { if (!state.deps.includes(dep)) { state.deps.push(dep); renderDeps(); update(); } };
+      box.appendChild(b);
+    });
+  }
+
+  function selectGame(key, userAction) {
+    state.game = key;
+    const g = game();
+    renderGames();
+    renderPathOptions(userAction ? null : undefined);
+    renderDepPresets();
+    $('loaderHint').textContent = g.loader === 'melonloader' ? 'MelonLoader' : g.loader === 'bepinex' ? 'BepInEx 5' : 'без загрузчика';
+    $('gameNote').innerHTML = g.note;
+    if (userAction) {
+      // подставляем базовые зависимости загрузчика, не трогая пользовательские
+      g.defaultDeps.forEach((d) => { if (!state.deps.includes(d)) state.deps.push(d); });
+      renderDeps();
+      toast(`Профиль: ${g.title}`, 'ok');
+    }
+    update();
   }
 
   // ============================================================
@@ -252,6 +389,13 @@
 
     if ($('installPath').value === 'custom' && !installDir()) errors.push('Выбрана своя папка, но путь не указан.');
 
+    if (game().loader === 'melonloader' && /^BepInEx/i.test(installDir())) {
+      warns.push('Игра на MelonLoader, а путь указан для BepInEx — скорее всего мод не загрузится.');
+    }
+    if (game().loader === 'bepinex' && /^(Mods|Plugins|UserLibs|UserData)$/i.test(installDir())) {
+      warns.push('Игра на BepInEx, а выбрана папка MelonLoader — проверь путь установки.');
+    }
+
     const total = state.files.reduce((s, f) => s + f.size, 0);
     if (total > MAX_ZIP) errors.push('Суммарный размер больше 5 ГБ — лимит Thunderstore.');
 
@@ -260,7 +404,14 @@
 
     if (!errors.length) {
       oks.push(`Пакет валиден: ${zipBaseName()}.zip`);
-      if (!state.deps.length) warns.push('Зависимости не указаны. Для BepInEx-мода обычно нужен BepInEx-BepInExPack.');
+      const g = game();
+      if (g.loader === 'melonloader' && !state.deps.some((d) => /^LavaGang-MelonLoader-/.test(d))) {
+        warns.push(`Для ${g.title} в зависимости обычно добавляют LavaGang-MelonLoader — иначе менеджер не поставит загрузчик.`);
+      } else if (g.loader === 'bepinex' && !state.deps.some((d) => /BepInExPack/i.test(d))) {
+        warns.push(`Для ${g.title} в зависимостях обычно нужен BepInExPack.`);
+      } else if (!state.deps.length) {
+        warns.push('Зависимости не указаны — проверь, точно ли мод работает сам по себе.');
+      }
     }
     return { errors, warns, oks };
   }
@@ -408,11 +559,25 @@
   function readmeTemplate() {
     const name = ($('name').value.trim() || 'My_Awesome_Mod').replace(/_/g, ' ');
     const desc = $('description').value.trim() || 'Короткое описание того, что делает мод.';
-    const deps = state.deps.length ? state.deps.map((d) => `- ${d}`).join('\n') : '- BepInEx';
+    const g = game();
+    const deps = state.deps.length ? state.deps.map((d) => `- ${d}`).join('\n') : '- —';
     const site = $('website').value.trim();
+    const melon = g.loader === 'melonloader';
+    const install = melon
+      ? `1. Установи [MelonLoader](https://thunderstore.io/c/${g.community || 'bonelab'}/p/LavaGang/MelonLoader/) и запусти игру один раз.
+2. Поставь мод через Thunderstore App / r2modman — или вручную положи \`.dll\` в папку \`Mods\` рядом с игрой.
+3. Запусти игру и проверь консоль MelonLoader — мод должен отметиться при загрузке.`
+      : `1. Установи [BepInEx](https://thunderstore.io/package/bbepis/BepInExPack/) и запусти игру один раз.
+2. Поставь мод через r2modman / Gale — или вручную положи \`.dll\` в \`BepInEx/plugins\`.
+3. Перезапусти игру, чтобы сгенерировался конфиг.`;
+    const cfg = melon
+      ? `Конфиг появится здесь: \`UserData/${$('name').value.trim() || 'MyMod'}.cfg\``
+      : `Конфиг появится здесь: \`BepInEx/config/${$('author').value.trim() || 'Author'}.${$('name').value.trim() || 'MyMod'}.cfg\``;
     return `# ${name}
 
 ${desc}
+
+> Игра: **${g.title}** · загрузчик: **${melon ? 'MelonLoader' : g.loader === 'bepinex' ? 'BepInEx' : 'не требуется'}**
 
 ## ✨ Возможности
 
@@ -422,13 +587,11 @@ ${desc}
 
 ## 📦 Установка
 
-1. Установи [BepInEx](https://thunderstore.io/package/bbepis/BepInExPack/).
-2. Скачай этот мод через r2modman / Gale — или вручную положи \`.dll\` в \`BepInEx/plugins\`.
-3. Запусти игру один раз, чтобы сгенерировался конфиг.
+${install}
 
 ## ⚙️ Настройка
 
-Конфиг появится здесь: \`BepInEx/config/${$('author').value.trim() || 'Author'}.${$('name').value.trim() || 'MyMod'}.cfg\`
+${cfg}
 
 | Параметр | По умолчанию | Описание |
 | --- | --- | --- |
@@ -474,7 +637,7 @@ MIT
         readme: $('readme').value, changelog: $('changelog').value,
         includeChangelog: $('includeChangelog').checked,
         installPath: $('installPath').value, customPath: $('customPath').value,
-        accent: state.accent,
+        accent: state.accent, game: state.game,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       if (!quiet) toast('Профиль сохранён в браузере', 'ok');
@@ -485,6 +648,7 @@ MIT
     let d = null;
     try { d = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch (_) {}
     if (!d) return false;
+    state.game = GAMES[d.game] ? d.game : 'bonelab';
     $('author').value = d.author || '';
     $('name').value = d.name || '';
     $('description').value = d.description || '';
@@ -493,11 +657,12 @@ MIT
     $('readme').value = d.readme || '';
     $('changelog').value = d.changelog || '';
     $('includeChangelog').checked = !!d.includeChangelog;
-    $('installPath').value = d.installPath || 'BepInEx/plugins';
-    $('customPath').value = d.customPath || '';
-    $('customPath').classList.toggle('hidden', $('installPath').value !== 'custom');
     state.deps = Array.isArray(d.deps) ? d.deps : [];
     state.accent = d.accent || PALETTE[0];
+    selectGame(state.game, false);
+    renderPathOptions(d.installPath);
+    $('customPath').value = d.customPath || '';
+    $('customPath').classList.toggle('hidden', $('installPath').value !== 'custom');
     renderDeps();
     return true;
   }
@@ -515,16 +680,6 @@ MIT
   }
 
   function init() {
-    // пресеты зависимостей
-    const seen = new Set();
-    PRESETS.forEach(([label, dep]) => {
-      if (seen.has(dep)) return; seen.add(dep);
-      const b = document.createElement('button');
-      b.type = 'button'; b.textContent = '+ ' + label; b.title = dep;
-      b.onclick = () => { if (!state.deps.includes(dep)) { state.deps.push(dep); renderDeps(); update(); } };
-      $('depPresets').appendChild(b);
-    });
-
     // палитра
     PALETTE.forEach((c) => {
       const s = document.createElement('div');
@@ -624,8 +779,9 @@ MIT
     // стартовые значения
     const restored = loadProfile();
     if (!restored) {
-      $('author').value = '';
-      $('name').value = '';
+      selectGame('bonelab', false);
+      state.deps = GAMES.bonelab.defaultDeps.slice();
+      renderDeps();
       $('readme').value = readmeTemplate();
       $('changelog').value = changelogTemplate();
     }

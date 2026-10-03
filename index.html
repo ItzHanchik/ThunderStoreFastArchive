@@ -34,7 +34,16 @@
 
     <div class="card">
       <div class="card-head">
-        <h2>1. Файлы мода</h2>
+        <h2>1. Игра и загрузчик</h2>
+        <span class="hint" id="loaderHint">—</span>
+      </div>
+      <div class="games" id="games"></div>
+      <p class="help" id="gameNote">Выбор игры подставит правильную папку установки, зависимости и шаблон README.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>2. Файлы мода</h2>
         <span class="hint">DLL и всё остальное</span>
       </div>
 
@@ -52,15 +61,9 @@
 
       <div class="field">
         <label for="installPath">Куда класть файлы внутри архива</label>
-        <select id="installPath">
-          <option value="BepInEx/plugins">BepInEx/plugins/ — классика для BepInEx-модов</option>
-          <option value="">Корень архива — файлы рядом с manifest.json</option>
-          <option value="plugins">plugins/</option>
-          <option value="patchers">BepInEx/patchers/ (preloader-патчеры)</option>
-          <option value="custom">Своя папка…</option>
-        </select>
+        <select id="installPath"></select>
         <input type="text" id="customPath" class="mt8 hidden" placeholder="например: BepInEx/plugins/MyMod" />
-        <p class="help">Менеджеры модов (r2modman / Gale) раскладывают файлы по этим правилам. Если не уверен — оставь <code>BepInEx/plugins</code>.</p>
+        <p class="help" id="pathHelp">Менеджеры модов (r2modman / Gale / Thunderstore App) раскладывают файлы по этим правилам.</p>
       </div>
 
       <ul class="filelist" id="fileList"></ul>
@@ -68,7 +71,7 @@
 
     <div class="card">
       <div class="card-head">
-        <h2>2. Манифест</h2>
+        <h2>3. Манифест</h2>
         <span class="hint">manifest.json</span>
       </div>
 
@@ -119,7 +122,7 @@
 
     <div class="card">
       <div class="card-head">
-        <h2>3. Иконка</h2>
+        <h2>4. Иконка</h2>
         <span class="hint">icon.png · ровно 256×256</span>
       </div>
       <div class="icon-row">
@@ -144,7 +147,7 @@
 
     <div class="card">
       <div class="card-head">
-        <h2>4. README и CHANGELOG</h2>
+        <h2>5. README и CHANGELOG</h2>
         <span class="hint">markdown</span>
       </div>
       <div class="tabs" id="docTabs">
