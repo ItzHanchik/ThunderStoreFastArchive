@@ -1,136 +1,181 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Thunderstore Fast Archive — быстрая сборка мод-архива</title>
-<meta name="description" content="Собери валидный Thunderstore-архив за минуту: закинь DLL, заполни поля, посмотри превью страницы мода и скачай готовый zip." />
+<meta name="color-scheme" content="light dark" />
+<title>Thunderstore Fast Archive — build a mod package in a minute</title>
+<meta name="description" content="Build a valid Thunderstore mod package right in your browser: drop the DLLs, fill in the form, preview the mod page and download a ready zip." />
 <link rel="preconnect" href="https://cdn.jsdelivr.net" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+<script>
+/* Apply the saved theme and language before the first paint — no flash. */
+(function () {
+  var root = document.documentElement;
+  try {
+    root.setAttribute('data-theme', localStorage.getItem('tsfa.theme') === 'dark' ? 'dark' : 'light');
+    root.setAttribute('lang', localStorage.getItem('tsfa.lang') === 'ru' ? 'ru' : 'en');
+  } catch (e) {
+    root.setAttribute('data-theme', 'light');
+    root.setAttribute('lang', 'en');
+  }
+})();
+</script>
 <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-<div class="bg-grid" aria-hidden="true"></div>
-<div class="bg-glow" aria-hidden="true"></div>
+<div class="bg" aria-hidden="true"></div>
 
 <header class="topbar">
   <div class="brand">
-    <div class="brand-mark">⚡</div>
-    <div>
-      <div class="brand-title">Thunderstore <span>Fast Archive</span></div>
-      <div class="brand-sub">Собери валидный мод-пакет за минуту — прямо в браузере</div>
+    <div class="brand-mark" aria-hidden="true">⚡</div>
+    <div class="brand-text">
+      <div class="brand-title" data-i18n-html="brand.title">Thunderstore <span>Fast Archive</span></div>
+      <div class="brand-sub" data-i18n="brand.sub">Assemble a valid mod package in a minute — right in your browser</div>
     </div>
   </div>
+
   <div class="topbar-actions">
-    <span class="pill pill-ok" id="privacyPill" title="Ничего не уходит на сервер">🔒 100% локально</span>
-    <button class="btn ghost" id="btnImport" type="button">📥 Импорт zip</button>
+    <span class="pill pill-ok" id="privacyPill" data-i18n="ui.privacy" data-i18n-attr="title:ui.privacyTitle">🔒 100% local</span>
+
+    <div class="seg" id="langSwitch" role="group" data-i18n-attr="aria-label:ui.langLabel">
+      <button type="button" data-lang="en" class="active">EN</button>
+      <button type="button" data-lang="ru">RU</button>
+    </div>
+
+    <button class="btn icon-btn" id="btnTheme" type="button" data-i18n-attr="aria-label:ui.themeToDark;title:ui.themeToDark">
+      <svg class="ico-sun" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="currentColor"/><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/></g></svg>
+      <svg class="ico-moon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z" fill="currentColor"/></svg>
+    </button>
+
+    <button class="btn" id="btnImport" type="button" data-i18n="ui.importZip">📥 Import zip</button>
     <input type="file" id="zipInput" accept=".zip,application/zip" hidden />
-    <button class="btn ghost" id="btnReset" type="button">Сбросить</button>
-    <a class="btn ghost" href="https://thunderstore.io/package/create/docs/" target="_blank" rel="noopener">Правила ↗</a>
+    <button class="btn ghost" id="btnReset" type="button" data-i18n="ui.reset">Reset</button>
+    <a class="btn ghost hide-sm" href="https://thunderstore.io/package/create/docs/" target="_blank" rel="noopener" data-i18n="ui.rules">Publishing rules ↗</a>
   </div>
 </header>
 
 <main class="layout">
-  <!-- ======================= ЛЕВАЯ КОЛОНКА: ФОРМА ======================= -->
+  <!-- ======================= FORM COLUMN ======================= -->
   <section class="col col-form">
 
+    <!-- readiness -->
+    <div class="card readiness">
+      <div class="readiness-head">
+        <h2 data-i18n="readiness.title">Package readiness</h2>
+        <span class="readiness-count" id="readyCount">0 / 4</span>
+      </div>
+      <div class="bar"><span id="readyBar" style="width:0%"></span></div>
+      <ul class="steps">
+        <li class="step" id="step-files"><span class="step-dot">✓</span><span data-i18n="readiness.stepFiles">Mod files</span></li>
+        <li class="step" id="step-manifest"><span class="step-dot">✓</span><span data-i18n="readiness.stepManifest">Manifest</span></li>
+        <li class="step" id="step-icon"><span class="step-dot">✓</span><span data-i18n="readiness.stepIcon">Icon 256×256</span></li>
+        <li class="step" id="step-readme"><span class="step-dot">✓</span><span data-i18n="readiness.stepReadme">README</span></li>
+      </ul>
+      <p class="help" id="readyHint" data-i18n="readiness.hint">Complete all four steps to publish your mod.</p>
+    </div>
+
+    <!-- 1. game -->
     <div class="card">
       <div class="card-head">
-        <h2>1. Игра и загрузчик</h2>
+        <h2 data-i18n="sections.game">1. Game &amp; loader</h2>
         <span class="hint" id="loaderHint">—</span>
       </div>
       <div class="search-row">
-        <input type="text" id="gameSearch" placeholder="🔍 Поиск игры: bonelab, lethal, valheim…" autocomplete="off" />
+        <input type="text" id="gameSearch" data-i18n-attr="placeholder:game.searchPh" placeholder="🔍 Search a game: bonelab, lethal, valheim…" autocomplete="off" />
         <span class="hint" id="gameCount"></span>
       </div>
       <div class="games" id="games"></div>
-      <p class="help" id="gameNote">Выбор игры подставит правильную папку установки, зависимости и шаблон README.</p>
+      <p class="help" id="gameNote" data-i18n="game.note">Choosing a game fills in the right install folder, dependencies and README template.</p>
       <p class="help" id="gameLink"></p>
     </div>
 
+    <!-- 2. files -->
     <div class="card">
       <div class="card-head">
-        <h2>2. Файлы мода</h2>
-        <span class="hint">DLL и всё остальное</span>
+        <h2 data-i18n="sections.files">2. Mod files</h2>
+        <span class="hint" data-i18n="sections.filesHint">DLL and everything else</span>
       </div>
 
-      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Загрузить файлы мода">
-        <div class="dz-icon">📦</div>
-        <div class="dz-title">Перетащи сюда <b>.dll</b> (или любые файлы / папку)</div>
-        <div class="dz-sub">или нажми, чтобы выбрать · готовый <b>.zip</b> мода импортируется целиком</div>
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" data-i18n-attr="aria-label:files.dropTitle">
+        <div class="dz-icon" aria-hidden="true">📦</div>
+        <div class="dz-title" id="dzTitle" data-i18n-html="files.dropTitle">Drop your <b>.dll</b> here (or any files / a folder)</div>
+        <div class="dz-sub" data-i18n-html="files.dropSub">or click to choose · a ready mod <b>.zip</b> is imported as a whole package</div>
         <input type="file" id="fileInput" multiple hidden />
         <input type="file" id="folderInput" webkitdirectory directory multiple hidden />
       </div>
       <div class="dz-row">
-        <button class="btn tiny ghost" type="button" id="btnPickFolder">📁 Выбрать папку</button>
-        <span class="hint" id="filesSummary">Файлов нет</span>
+        <button class="btn tiny ghost" type="button" id="btnPickFolder" data-i18n="files.pickFolder">📁 Choose folder</button>
+        <span class="hint" id="filesSummary">No files yet</span>
       </div>
 
       <div class="field">
-        <label for="installPath">Куда класть файлы внутри архива</label>
+        <label for="installPath" data-i18n="install.label">Where to put the files inside the archive</label>
         <select id="installPath"></select>
-        <input type="text" id="customPath" class="mt8 hidden" placeholder="например: BepInEx/plugins/MyMod" />
-        <p class="help" id="pathHelp">Менеджеры модов (r2modman / Gale / Thunderstore App) раскладывают файлы по этим правилам.</p>
+        <input type="text" id="customPath" class="mt8 hidden" data-i18n-attr="placeholder:install.customPh" placeholder="e.g. BepInEx/plugins/MyMod" />
+        <p class="help" id="pathHelp" data-i18n="install.help">Mod managers (r2modman / Gale / Thunderstore App) unpack files according to these rules.</p>
       </div>
 
       <ul class="filelist" id="fileList"></ul>
     </div>
 
+    <!-- 3. manifest -->
     <div class="card">
       <div class="card-head">
-        <h2>3. Манифест</h2>
-        <span class="hint">manifest.json</span>
+        <h2 data-i18n="sections.manifest">3. Manifest</h2>
+        <span class="hint" data-i18n="sections.manifestHint">manifest.json</span>
       </div>
 
       <div class="grid2">
         <div class="field">
-          <label for="author">Автор / namespace <b class="req">*</b></label>
-          <input type="text" id="author" placeholder="YourTeamName" autocomplete="off" />
-          <p class="help">Как называется твоя команда на Thunderstore. Входит в имя файла архива.</p>
+          <label for="author"><span data-i18n="manifest.author">Author / namespace</span> <b class="req">*</b></label>
+          <input type="text" id="author" data-i18n-attr="placeholder:manifest.authorPh" placeholder="YourTeamName" autocomplete="off" />
+          <p class="help" data-i18n="manifest.authorHelp">The name of your team on Thunderstore. It is a part of the archive file name.</p>
         </div>
         <div class="field">
-          <label for="name">Имя мода <b class="req">*</b></label>
-          <input type="text" id="name" placeholder="My_Awesome_Mod" autocomplete="off" />
-          <p class="help">Только <code>a-z A-Z 0-9 _</code>, без пробелов, до 128 символов.</p>
+          <label for="name"><span data-i18n="manifest.name">Mod name</span> <b class="req">*</b></label>
+          <input type="text" id="name" data-i18n-attr="placeholder:manifest.namePh" placeholder="My_Awesome_Mod" autocomplete="off" />
+          <p class="help" data-i18n-html="manifest.nameHelp">Only <code>a-z A-Z 0-9 _</code>, no spaces, up to 128 characters.</p>
         </div>
       </div>
 
       <div class="field">
-        <label for="description">Короткое описание <b class="req">*</b> <span class="counter" id="descCounter">0 / 250</span></label>
-        <textarea id="description" rows="2" maxlength="250" placeholder="Что делает мод — одной строкой"></textarea>
+        <label for="description"><span data-i18n="manifest.desc">Short description</span> <b class="req">*</b> <span class="counter" id="descCounter">0 / 250</span></label>
+        <textarea id="description" rows="2" maxlength="250" data-i18n-attr="placeholder:manifest.descPh" placeholder="What the mod does — in one line"></textarea>
       </div>
 
       <div class="grid3">
         <div class="field">
-          <label for="version">Версия <b class="req">*</b></label>
+          <label for="version" data-i18n="manifest.version">Version</label>
           <div class="ver-row">
-            <input type="text" id="version" placeholder="1.0.0" value="1.0.0" />
-            <button class="btn tiny" type="button" id="bumpPatch" title="Увеличить patch">+patch</button>
-            <button class="btn tiny" type="button" id="bumpMinor" title="Увеличить minor">+minor</button>
+            <input type="text" id="version" data-i18n-attr="placeholder:manifest.versionPh" placeholder="1.0.0" value="1.0.0" />
+            <button class="btn tiny" type="button" id="bumpPatch" data-i18n="manifest.bumpPatch" data-i18n-attr="title:manifest.bumpPatchTitle">+patch</button>
+            <button class="btn tiny" type="button" id="bumpMinor" data-i18n="manifest.bumpMinor" data-i18n-attr="title:manifest.bumpMinorTitle">+minor</button>
           </div>
         </div>
         <div class="field span2">
-          <label for="website">Сайт / репозиторий</label>
+          <label for="website" data-i18n="manifest.website">Website / repository</label>
           <input type="text" id="website" placeholder="https://github.com/user/repo" />
         </div>
       </div>
 
       <div class="field">
-        <label>Зависимости</label>
+        <label data-i18n="manifest.deps">Dependencies</label>
         <div class="dep-presets" id="depPresets"></div>
         <div class="dep-add">
-          <input type="text" id="depInput" placeholder="Namespace-Name-1.0.0" />
-          <button class="btn" type="button" id="btnAddDep">Добавить</button>
+          <input type="text" id="depInput" data-i18n-attr="placeholder:manifest.depPh" placeholder="Namespace-Name-1.0.0" />
+          <button class="btn" type="button" id="btnAddDep" data-i18n="manifest.addDep">Add</button>
         </div>
         <ul class="deplist" id="depList"></ul>
-        <p class="help">Формат строгий: <code>Namespace-Name-Major.Minor.Patch</code>. Эти моды менеджер поставит автоматически.</p>
+        <p class="help" data-i18n-html="manifest.depHelp">Strict format: <code>Namespace-Name-Major.Minor.Patch</code>. The mod manager installs these automatically.</p>
       </div>
     </div>
 
+    <!-- 4. icon -->
     <div class="card">
       <div class="card-head">
-        <h2>4. Иконка</h2>
-        <span class="hint">icon.png · ровно 256×256</span>
+        <h2 data-i18n="sections.icon">4. Icon</h2>
+        <span class="hint" data-i18n="sections.iconHint">icon.png · exactly 256×256</span>
       </div>
       <div class="icon-row">
         <div class="icon-preview" id="iconPreview">
@@ -138,76 +183,81 @@
           <span class="icon-badge" id="iconBadge">256×256</span>
         </div>
         <div class="icon-controls">
-          <div class="dropzone small" id="iconDrop" tabindex="0" role="button">
-            <div>🖼️ Перетащи картинку или нажми</div>
-            <div class="dz-sub">PNG / JPG / WEBP — обрежем и ужмём до 256×256</div>
+          <div class="dropzone small" id="iconDrop" tabindex="0" role="button" data-i18n-attr="aria-label:icon.drop">
+            <div data-i18n="icon.drop">🖼️ Drop an image or click</div>
+            <div class="dz-sub" data-i18n="icon.dropSub">PNG / JPG / WEBP — we crop and squeeze it to 256×256</div>
             <input type="file" id="iconInput" accept="image/*" hidden />
           </div>
           <div class="icon-gen">
-            <span class="help">Нет картинки? Сгенерируем из названия:</span>
+            <span class="help" data-i18n="icon.genLabel">No image? Generate one from the mod name:</span>
             <div class="swatches" id="swatches"></div>
-            <button class="btn tiny ghost" type="button" id="btnGenIcon">🎲 Сгенерировать иконку</button>
+            <button class="btn tiny ghost" type="button" id="btnGenIcon" data-i18n="icon.genBtn">🎲 Generate icon</button>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- 5. docs -->
     <div class="card">
       <div class="card-head">
-        <h2>5. README и CHANGELOG</h2>
-        <span class="hint">markdown</span>
+        <h2 data-i18n="sections.docs">5. README &amp; CHANGELOG</h2>
+        <span class="hint" data-i18n="sections.docsHint">markdown</span>
       </div>
       <div class="tabs" id="docTabs">
-        <button class="tab active" data-doc="readme" type="button">README.md</button>
-        <button class="tab" data-doc="changelog" type="button">CHANGELOG.md <span class="opt">опц.</span></button>
+        <button class="tab active" data-doc="readme" type="button" data-i18n="docs.readme">README.md</button>
+        <button class="tab" data-doc="changelog" type="button"><span data-i18n="docs.changelog">CHANGELOG.md</span> <span class="opt" data-i18n="docs.optional">optional</span></button>
       </div>
       <div class="editor-tools">
-        <button class="btn tiny ghost" type="button" id="btnTemplate">Вставить шаблон</button>
-        <label class="switch"><input type="checkbox" id="includeChangelog" /> <span>Класть CHANGELOG в архив</span></label>
+        <button class="btn tiny ghost" type="button" id="btnTemplate" data-i18n="docs.insertTemplate">Insert template</button>
+        <label class="switch"><input type="checkbox" id="includeChangelog" /> <span data-i18n="docs.include">Put CHANGELOG into the archive</span></label>
       </div>
-      <textarea id="readme" class="code" rows="16" spellcheck="false"></textarea>
-      <textarea id="changelog" class="code hidden" rows="16" spellcheck="false"></textarea>
+      <div class="lang-note">
+        <span class="badge-en" data-i18n="docs.englishBadge" data-i18n-attr="title:docs.englishTip">English only</span>
+        <span class="lang-note-text" data-i18n="docs.englishTip">Mod pages on Thunderstore are read all over the world, so README.md and CHANGELOG.md templates are always generated in English — switching the interface language never overwrites them.</span>
+      </div>
+      <textarea id="readme" class="code" rows="16" spellcheck="false" aria-label="README.md"></textarea>
+      <textarea id="changelog" class="code hidden" rows="16" spellcheck="false" aria-label="CHANGELOG.md"></textarea>
     </div>
   </section>
 
-  <!-- ======================= ПРАВАЯ КОЛОНКА: ПРЕВЬЮ ======================= -->
+  <!-- ======================= PREVIEW COLUMN ======================= -->
   <aside class="col col-preview">
     <div class="sticky">
 
       <div class="card validation" id="validationCard">
         <div class="card-head">
-          <h2>Проверка</h2>
+          <h2 data-i18n="sections.validation">Validation</h2>
           <span class="pill" id="statusPill">—</span>
         </div>
         <ul class="issues" id="issues"></ul>
         <div class="actions">
           <button class="btn primary big" id="btnDownload" type="button" disabled>
-            <span>⬇️ Скачать архив</span>
+            <span data-i18n="validation.download">⬇️ Download archive</span>
             <small id="zipName">—</small>
           </button>
           <div class="actions-row">
-            <button class="btn ghost tiny" type="button" id="btnCopyManifest">Копировать manifest.json</button>
-            <button class="btn ghost tiny" type="button" id="btnSaveProfile">Сохранить профиль</button>
+            <button class="btn ghost tiny" type="button" id="btnCopyManifest" data-i18n="validation.copyManifest">Copy manifest.json</button>
+            <button class="btn ghost tiny" type="button" id="btnSaveProfile" data-i18n="validation.saveProfile">Save profile</button>
           </div>
         </div>
       </div>
 
       <div class="card preview">
         <div class="tabs" id="prevTabs">
-          <button class="tab active" data-prev="page" type="button">Страница мода</button>
-          <button class="tab" data-prev="card" type="button">Карточка</button>
-          <button class="tab" data-prev="tree" type="button">Содержимое zip</button>
-          <button class="tab" data-prev="json" type="button">manifest.json</button>
+          <button class="tab active" data-prev="page" type="button" data-i18n="preview.page">Mod page</button>
+          <button class="tab" data-prev="card" type="button" data-i18n="preview.card">Card</button>
+          <button class="tab" data-prev="tree" type="button" data-i18n="preview.tree">Zip contents</button>
+          <button class="tab" data-prev="json" type="button" data-i18n="preview.json">manifest.json</button>
         </div>
 
         <div class="prev-pane" id="pane-page">
           <div class="ts-page">
             <div class="ts-header">
-              <img id="pgIcon" alt="icon" />
+              <img id="pgIcon" alt="" />
               <div class="ts-headmeta">
                 <h3 id="pgName">My_Awesome_Mod</h3>
                 <div class="ts-by">by <span id="pgAuthor">Author</span></div>
-                <div class="ts-desc" id="pgDesc">Короткое описание мода</div>
+                <div class="ts-desc" id="pgDesc"></div>
                 <div class="ts-chips">
                   <span class="chip" id="pgVer">v1.0.0</span>
                   <span class="chip">⬇ 0</span>
@@ -223,16 +273,16 @@
         <div class="prev-pane hidden" id="pane-card">
           <div class="ts-cards">
             <article class="ts-card">
-              <img id="cardIcon" alt="icon" />
+              <img id="cardIcon" alt="" />
               <div class="ts-card-body">
                 <h4 id="cardName">My_Awesome_Mod</h4>
                 <div class="ts-card-by" id="cardAuthor">Author</div>
-                <p id="cardDesc">Короткое описание мода</p>
+                <p id="cardDesc"></p>
               </div>
               <div class="ts-card-foot"><span>⬇ 0</span><span>♥ 0</span><span id="cardVer">1.0.0</span></div>
             </article>
           </div>
-          <p class="help center">Так мод выглядит в списке на Thunderstore и в менеджере модов.</p>
+          <p class="help center" data-i18n="preview.cardHint">This is how the mod looks in the Thunderstore listing and in mod managers.</p>
         </div>
 
         <div class="prev-pane hidden" id="pane-tree">
@@ -250,18 +300,19 @@
 </main>
 
 <footer class="footer">
-  <span>Файлы не покидают браузер — архив собирается локально через JSZip.</span>
+  <span data-i18n="footer.privacy">Files never leave the browser — the archive is built locally with JSZip.</span>
   <span class="dot">•</span>
-  <a href="https://wiki.thunderstore.io/mods/creating-a-package" target="_blank" rel="noopener">Thunderstore Wiki</a>
+  <a href="https://wiki.thunderstore.io/mods/creating-a-package" target="_blank" rel="noopener" data-i18n="footer.wiki">Thunderstore Wiki</a>
   <span class="dot">•</span>
-  <a href="https://thunderstore.io/tools/manifest-v1-validator/" target="_blank" rel="noopener">Manifest Validator</a>
+  <a href="https://thunderstore.io/tools/manifest-v1-validator/" target="_blank" rel="noopener" data-i18n="footer.validator">Manifest Validator</a>
 </footer>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-<script src="./app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js" defer></script>
+<script src="./i18n.js" defer></script>
+<script src="./app.js" defer></script>
 </body>
 </html>

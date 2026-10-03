@@ -1,49 +1,55 @@
 /* ============================================================
    Thunderstore Fast Archive
-   Собирает валидный Thunderstore-пакет целиком в браузере.
-   Правила: https://thunderstore.io/package/create/docs/
+   Builds a valid Thunderstore package entirely in the browser.
+   Rules: https://thunderstore.io/package/create/docs/
+   UI strings come from i18n.js (EN default, RU second);
+   the generated README.md / CHANGELOG.md are ALWAYS English.
    ============================================================ */
 (() => {
   'use strict';
 
   const $ = (id) => document.getElementById(id);
-  const MAX_ZIP = 5242880000;           // ~5 GB, мягкий лимит Thunderstore
+  const T = (key, vars) => window.I18N.t(key, vars);
+  const P = (key, n) => window.I18N.p(key, n);
+
+  const MAX_ZIP = 5242880000;           // ~5 GB, the soft Thunderstore limit
   const NAME_RE = /^[a-zA-Z0-9_]+$/;    // name / namespace
   const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
   const DEP_RE = /^[a-zA-Z0-9_]+-[a-zA-Z0-9_]+-(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
   const STORAGE_KEY = 'tsfa.profile.v1';
+  const THEME_KEY = 'tsfa.theme';
 
-  // ---------- пути установки по загрузчику ----------
+  // ---------- install paths per loader (values are language-independent) ----------
   const PATHS = {
     bepinex: [
-      ['BepInEx/plugins', 'BepInEx/plugins/ — обычный плагин (рекомендуется)'],
-      ['BepInEx/patchers', 'BepInEx/patchers/ — preloader-патчер'],
-      ['BepInEx/config', 'BepInEx/config/ — готовые конфиги'],
-      ['', 'Корень архива — рядом с manifest.json'],
-      ['custom', 'Своя папка…'],
+      ['BepInEx/plugins', 'paths.bepinex.plugins'],
+      ['BepInEx/patchers', 'paths.bepinex.patchers'],
+      ['BepInEx/config', 'paths.bepinex.config'],
+      ['', 'paths.root'],
+      ['custom', 'paths.custom'],
     ],
     melonloader: [
-      ['Mods', 'Mods/ — обычный MelonLoader-мод (рекомендуется)'],
-      ['Plugins', 'Plugins/ — MelonLoader-плагин (грузится раньше мода)'],
-      ['UserLibs', 'UserLibs/ — вспомогательные библиотеки'],
-      ['UserData', 'UserData/ — ассеты, конфиги, палеты'],
-      ['', 'Корень архива — рядом с manifest.json'],
-      ['custom', 'Своя папка…'],
+      ['Mods', 'paths.melonloader.mods'],
+      ['Plugins', 'paths.melonloader.plugins'],
+      ['UserLibs', 'paths.melonloader.userlibs'],
+      ['UserData', 'paths.melonloader.userdata'],
+      ['', 'paths.root'],
+      ['custom', 'paths.custom'],
     ],
     northstar: [
-      ['mods', 'mods/ — папка мода Northstar'],
-      ['', 'Корень архива — рядом с manifest.json'],
-      ['custom', 'Своя папка…'],
+      ['mods', 'paths.northstar.mods'],
+      ['', 'paths.root'],
+      ['custom', 'paths.custom'],
     ],
     none: [
-      ['', 'Корень архива — рядом с manifest.json'],
-      ['custom', 'Своя папка…'],
+      ['', 'paths.root'],
+      ['custom', 'paths.custom'],
     ],
   };
 
-  // ---------- игры ----------
-  // ---------- каталог игр ----------
-  // Версии пресетов актуальны на момент сборки — всегда сверяйся со страницей пакета.
+  // ---------- game catalog ----------
+  // Preset versions are current as of the build date — always double-check the package page.
+  // `tags` mixes English and Russian search words on purpose: search matches both languages.
   const BEP = ['BepInExPack', 'BepInEx-BepInExPack-5.4.2100'];
   const ML = ['MelonLoader 0.7.3', 'LavaGang-MelonLoader-0.7.3'];
 
@@ -51,7 +57,6 @@
     bonelab: {
       title: 'BONELAB', emoji: '🦴', loader: 'melonloader', community: 'bonelab',
       tags: 'боунлаб bonelab slz marrow vr',
-      note: 'MelonLoader раскладывает содержимое в <code>Mods/&lt;Author-ModName&gt;/</code>. Код-моды — в <code>Mods/</code>, ассеты и палеты — в <code>UserData/</code>.',
       deps: [
         ['MelonLoader 0.6.6', 'LavaGang-MelonLoader-0.6.6'],
         ['MelonLoader 0.7.3', 'LavaGang-MelonLoader-0.7.3'],
@@ -63,199 +68,169 @@
     boneworks: {
       title: 'BONEWORKS', emoji: '🔩', loader: 'melonloader', community: 'boneworks',
       tags: 'боунворкс boneworks vr',
-      note: 'BONEWORKS-моды собраны под MelonLoader <b>0.5.7</b> — более новые версии ломают совместимость.',
       deps: [['MelonLoader 0.5.7', 'LavaGang-MelonLoader-0.5.7']],
       defaultDeps: ['LavaGang-MelonLoader-0.5.7'],
     },
     'lethal-company': {
       title: 'Lethal Company', emoji: '🛸', loader: 'bepinex', community: 'lethal-company',
       tags: 'летал компани lethal company',
-      note: 'Классический BepInEx 5: <code>.dll</code> кладётся в <code>BepInEx/plugins</code>.',
       deps: [BEP, ['LethalLib', 'Evaisa-LethalLib-0.16.1'], ['MMHOOK', 'Evaisa-HookGenPatcher-0.0.5'], ['LC_API', '2018-LC_API-3.4.2']],
       defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     repo: {
       title: 'R.E.P.O.', emoji: '🤖', loader: 'bepinex', community: 'repo',
       tags: 'repo репо',
-      note: 'BepInEx 5, плагины в <code>BepInEx/plugins</code>.',
       deps: [BEP, ['REPOLib', 'Zehs-REPOLib-2.1.0']],
       defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     'content-warning': {
       title: 'Content Warning', emoji: '📹', loader: 'bepinex', community: 'content-warning',
       tags: 'content warning контент',
-      note: 'BepInEx 5, плагины в <code>BepInEx/plugins</code>.',
       deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     peak: {
       title: 'PEAK', emoji: '⛰️', loader: 'bepinex', community: 'peak',
       tags: 'peak пик climbing',
-      note: 'BepInEx 5, плагины в <code>BepInEx/plugins</code>.',
       deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     ultrakill: {
       title: 'ULTRAKILL', emoji: '🔫', loader: 'bepinex', community: 'ultrakill',
       tags: 'ultrakill ультракилл',
-      note: 'BepInEx 5. Для оружия и уровней обычно нужны дополнительные API-моды.',
       deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     riskofrain2: {
       title: 'Risk of Rain 2', emoji: '🌧️', loader: 'bepinex', community: 'riskofrain2',
       tags: 'risk of rain ror2 риск',
-      note: 'BepInEx + R2API — стандартный стек RoR2.',
       deps: [['BepInExPack (RoR2)', 'bbepis-BepInExPack-5.4.2113'], ['R2API', 'tristanmcpherson-R2API-5.0.12']],
       defaultDeps: ['bbepis-BepInExPack-5.4.2113'],
     },
     valheim: {
       title: 'Valheim', emoji: '⚔️', loader: 'bepinex', community: 'valheim',
       tags: 'valheim вальхейм',
-      note: 'У Valheim свой BepInEx-пак от denikson.',
       deps: [['BepInExPack Valheim', 'denikson-BepInExPack_Valheim-5.4.2202'], ['Jotunn', 'ValheimModding-Jotunn-2.20.1']],
       defaultDeps: ['denikson-BepInExPack_Valheim-5.4.2202'],
     },
     'v-rising': {
       title: 'V Rising', emoji: '🧛', loader: 'bepinex', community: 'v-rising',
       tags: 'v rising вампир',
-      note: 'V Rising использует BepInEx 6 (Il2Cpp) — пак <code>BepInExPack_V_Rising</code>.',
       deps: [['BepInExPack V Rising', 'BepInEx-BepInExPack_V_Rising-1.733.2']],
       defaultDeps: ['BepInEx-BepInExPack_V_Rising-1.733.2'],
     },
     gtfo: {
       title: 'GTFO', emoji: '🔦', loader: 'bepinex', community: 'gtfo',
-      tags: 'gtfo', note: 'BepInEx 6 (Il2Cpp). Сверься с паком коммьюнити GTFO.',
-      deps: [BEP], defaultDeps: [],
+      tags: 'gtfo', deps: [BEP], defaultDeps: [],
     },
     'dyson-sphere-program': {
       title: 'Dyson Sphere Program', emoji: '🛰️', loader: 'bepinex', community: 'dyson-sphere-program',
-      tags: 'dyson sphere dsp', note: 'BepInEx 5, плагины в <code>BepInEx/plugins</code>.',
-      deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
+      tags: 'dyson sphere dsp', deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     subnautica: {
       title: 'Subnautica', emoji: '🐟', loader: 'bepinex', community: 'subnautica',
-      tags: 'subnautica субнаутика', note: 'У Subnautica собственный пак <code>tobey-BepInExPack_Subnautica</code> — возьми актуальную версию со страницы пакета.',
-      deps: [BEP], defaultDeps: [],
+      tags: 'subnautica субнаутика', deps: [BEP], defaultDeps: [],
     },
     outward: {
       title: 'Outward', emoji: '🗡️', loader: 'bepinex', community: 'outward',
-      tags: 'outward', note: 'BepInEx 5, плагины в <code>BepInEx/plugins</code>.',
-      deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
+      tags: 'outward', deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     rounds: {
       title: 'ROUNDS', emoji: '🎯', loader: 'bepinex', community: 'rounds',
-      tags: 'rounds раундс', note: 'Почти все моды ROUNDS строятся поверх UnboundLib.',
+      tags: 'rounds раундс',
       deps: [BEP, ['UnboundLib', 'willis81808-UnboundLib-3.2.8']],
       defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     muck: {
       title: 'Muck', emoji: '🪓', loader: 'bepinex', community: 'muck',
-      tags: 'muck', note: 'BepInEx 5, плагины в <code>BepInEx/plugins</code>.',
-      deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
+      tags: 'muck', deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     timberborn: {
       title: 'Timberborn', emoji: '🦫', loader: 'bepinex', community: 'timberborn',
-      tags: 'timberborn бобры', note: 'BepInEx 5, плагины в <code>BepInEx/plugins</code>.',
-      deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
+      tags: 'timberborn бобры', deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     inscryption: {
       title: 'Inscryption', emoji: '🃏', loader: 'bepinex', community: 'inscryption',
-      tags: 'inscryption инскрипшн', note: 'BepInEx 5. Для карт обычно нужен API-мод коммьюнити.',
-      deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
+      tags: 'inscryption инскрипшн', deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     'cult-of-the-lamb': {
       title: 'Cult of the Lamb', emoji: '🐑', loader: 'bepinex', community: 'cult-of-the-lamb',
-      tags: 'cult of the lamb', note: 'BepInEx 5, плагины в <code>BepInEx/plugins</code>.',
-      deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
+      tags: 'cult of the lamb культ ягнёнка', deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     'sons-of-the-forest': {
       title: 'Sons Of The Forest', emoji: '🌲', loader: 'bepinex', community: 'sons-of-the-forest',
-      tags: 'sons of the forest', note: 'BepInEx 5, плагины в <code>BepInEx/plugins</code>.',
-      deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
+      tags: 'sons of the forest лес', deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     raft: {
       title: 'Raft', emoji: '🛶', loader: 'bepinex', community: 'raft',
-      tags: 'raft рафт', note: 'BepInEx 5, плагины в <code>BepInEx/plugins</code>.',
-      deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
+      tags: 'raft рафт', deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     h3vr: {
       title: 'H3VR', emoji: '🧨', loader: 'bepinex', community: 'h3vr',
-      tags: 'h3vr hot dogs horseshoes vr', note: 'У H3VR свой BepInEx-пак и система Deli/Sodalite — сверься с коммьюнити.',
-      deps: [BEP], defaultDeps: [],
+      tags: 'h3vr hot dogs horseshoes vr', deps: [BEP], defaultDeps: [],
     },
     'gorilla-tag': {
       title: 'Gorilla Tag', emoji: '🦍', loader: 'bepinex', community: 'gorilla-tag',
-      tags: 'gorilla tag monke горилла', note: 'BepInEx 5 для PCVR. Для Quest сборка другая.',
-      deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
+      tags: 'gorilla tag monke горилла', deps: [BEP], defaultDeps: ['BepInEx-BepInExPack-5.4.2100'],
     },
     'among-us': {
       title: 'Among Us', emoji: '🔪', loader: 'bepinex', community: 'among-us',
-      tags: 'among us амонг ас', note: 'Among Us — BepInEx 6 Il2Cpp, пак <code>BepInExPack_AmongUs</code>.',
-      deps: [BEP], defaultDeps: [],
+      tags: 'among us амонг ас', deps: [BEP], defaultDeps: [],
     },
     'deep-rock-galactic': {
       title: 'Deep Rock Galactic', emoji: '⛏️', loader: 'none', community: 'deep-rock-galactic',
-      tags: 'deep rock galactic drg', note: 'DRG использует собственный мод-лоадер: файлы кладутся в корень архива.',
-      deps: [], defaultDeps: [],
+      tags: 'deep rock galactic drg', deps: [], defaultDeps: [],
     },
     palworld: {
       title: 'Palworld', emoji: '🐾', loader: 'none', community: 'palworld',
-      tags: 'palworld палворлд', note: 'UE5-игра: pak/ue4ss-моды кладутся в корень архива.',
-      deps: [], defaultDeps: [],
+      tags: 'palworld палворлд', deps: [], defaultDeps: [],
     },
     'schedule-i': {
       title: 'Schedule I', emoji: '💊', loader: 'melonloader', community: 'schedule-i',
-      tags: 'schedule i шедул', note: 'Schedule I работает на MelonLoader: код-моды в <code>Mods/</code>.',
-      deps: [ML], defaultDeps: ['LavaGang-MelonLoader-0.7.3'],
+      tags: 'schedule i шедул', deps: [ML], defaultDeps: ['LavaGang-MelonLoader-0.7.3'],
     },
     rumble: {
       title: 'RUMBLE', emoji: '🥊', loader: 'melonloader', community: 'rumble',
-      tags: 'rumble vr', note: 'MelonLoader: код-моды в <code>Mods/</code>, ассеты в <code>UserData/</code>.',
-      deps: [ML], defaultDeps: ['LavaGang-MelonLoader-0.7.3'],
+      tags: 'rumble vr', deps: [ML], defaultDeps: ['LavaGang-MelonLoader-0.7.3'],
     },
     'hard-bullet': {
       title: 'Hard Bullet', emoji: '🔪', loader: 'melonloader', community: 'hard-bullet',
-      tags: 'hard bullet vr', note: 'MelonLoader. Для <code>.npc</code>-файлов у менеджера своё правило установки.',
-      deps: [ML], defaultDeps: ['LavaGang-MelonLoader-0.7.3'],
+      tags: 'hard bullet vr', deps: [ML], defaultDeps: ['LavaGang-MelonLoader-0.7.3'],
     },
     'backpack-hero': {
       title: 'Backpack Hero', emoji: '🎒', loader: 'melonloader', community: 'backpack-hero',
-      tags: 'backpack hero', note: 'MelonLoader: код-моды в <code>Mods/</code>.',
-      deps: [ML], defaultDeps: ['LavaGang-MelonLoader-0.7.3'],
+      tags: 'backpack hero', deps: [ML], defaultDeps: ['LavaGang-MelonLoader-0.7.3'],
     },
     'patch-quest': {
       title: 'Patch Quest', emoji: '🧩', loader: 'melonloader', community: 'patch-quest',
-      tags: 'patch quest', note: 'MelonLoader: код-моды в <code>Mods/</code>.',
-      deps: [ML], defaultDeps: ['LavaGang-MelonLoader-0.7.3'],
+      tags: 'patch quest', deps: [ML], defaultDeps: ['LavaGang-MelonLoader-0.7.3'],
     },
     northstar: {
       title: 'Titanfall 2 · Northstar', emoji: '🚀', loader: 'northstar', community: 'northstar',
-      tags: 'northstar titanfall титанфолл', note: 'Northstar ждёт структуру <code>mods/&lt;Author&gt;.&lt;ModName&gt;/</code> с собственным <code>mod.json</code>.',
-      deps: [], defaultDeps: [],
+      tags: 'northstar titanfall титанфолл', deps: [], defaultDeps: [],
     },
     other: {
-      title: 'Другая игра', emoji: '🎲', loader: 'bepinex', community: '',
-      tags: 'other custom другая', note: 'Общий BepInEx-профиль. Зависимости и путь можно задать вручную.',
+      title: 'Other game', emoji: '🎲', loader: 'bepinex', community: '',
+      tags: 'other custom другая',
       deps: [BEP, ML], defaultDeps: [],
     },
     raw: {
-      title: 'Без загрузчика', emoji: '📦', loader: 'none', community: '',
-      tags: 'modpack модпак ассеты raw', note: 'Модпак или набор ассетов: файлы ложатся в корень архива.',
-      deps: [], defaultDeps: [],
+      title: 'No loader', emoji: '📦', loader: 'none', community: '',
+      tags: 'modpack модпак ассеты raw', deps: [], defaultDeps: [],
     },
   };
 
-  const PALETTE = ['#4f7cff', '#8b5cf6', '#22d3ee', '#2ed47a', '#ffb020', '#ff5c5c', '#ec4899', '#64748b'];
+  const PALETTE = ['#3b6cf5', '#7b5cf0', '#0ea5b7', '#0d8f4f', '#c8861a', '#d02c22', '#db2777', '#64748b'];
 
   // ---------- state ----------
   const state = {
     files: [],              // {id, name, path, size, file}
     deps: [],
-    iconBlob: null,         // Blob (готовый png 256x256)
+    iconBlob: null,         // Blob (ready 256x256 png)
     iconUrl: null,
     iconSource: 'generated',
+    iconTouched: false,      // true once the user explicitly picks/generates an icon
     accent: PALETTE[0],
     activeDoc: 'readme',
     game: 'bonelab',
-    autoDeps: [],   // зависимости, подставленные пресетом игры
+    autoDeps: [],           // dependencies injected by the game preset
   };
   const game = () => GAMES[state.game] || GAMES.other;
   let uid = 0;
@@ -267,26 +242,63 @@
     if (b < 1073741824) return (b / 1048576).toFixed(2) + ' MB';
     return (b / 1073741824).toFixed(2) + ' GB';
   };
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
   const toast = (msg, kind = '') => {
-    const t = $('toast');
-    t.textContent = msg;
-    t.className = 'toast show ' + kind;
+    const el = $('toast');
+    el.textContent = msg;
+    el.className = 'toast show ' + kind;
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => (t.className = 'toast ' + kind), 2600);
+    toast._t = setTimeout(() => { el.className = 'toast ' + kind; }, 2600);
   };
   const debounce = (fn, ms = 160) => {
-    let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+    let timer; return (...a) => { clearTimeout(timer); timer = setTimeout(() => fn(...a), ms); };
   };
 
   // ============================================================
-  // ФАЙЛЫ
+  // THEME
+  // ============================================================
+  const currentTheme = () => (document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+
+  function renderThemeButton() {
+    const btn = $('btnTheme');
+    const key = currentTheme() === 'dark' ? 'ui.themeToLight' : 'ui.themeToDark';
+    btn.setAttribute('aria-label', T(key));
+    btn.setAttribute('title', T(key));
+  }
+
+  function setTheme(theme, notify) {
+    document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+    try { localStorage.setItem(THEME_KEY, theme); } catch (_) { /* private mode */ }
+    renderThemeButton();
+    if (notify) toast(T('toast.theme', { theme: theme }), '');
+  }
+
+  // ============================================================
+  // LANGUAGE
+  // ============================================================
+  function renderLangSwitch() {
+    document.querySelectorAll('#langSwitch button').forEach((b) => {
+      b.classList.toggle('active', b.dataset.lang === window.I18N.lang);
+    });
+  }
+
+  function switchLang(lang) {
+    if (lang === window.I18N.lang) return;
+    window.I18N.setLang(lang);   // applies static markup, then fires onChange → full re-render
+    renderLangSwitch();
+    toast(T('toast.lang', { lang: lang.toUpperCase() }), '');
+  }
+
+  // ============================================================
+  // FILES
   // ============================================================
   function addFiles(fileList) {
     const incoming = Array.from(fileList || []);
     if (!incoming.length) return;
-    // одиночный Thunderstore-zip — импортируем его целиком
+    // a single Thunderstore zip — import it as a whole package
     if (incoming.length === 1 && /\.zip$/i.test(incoming[0].name)) {
-      if (confirm(`Импортировать «${incoming[0].name}» как готовый пакет?\n\nОК — разобрать архив и заполнить форму.\nОтмена — просто добавить zip файлом в пакет.`)) {
+      if (confirm(T('toast.confirmImport', { file: incoming[0].name }))) {
         importZip(incoming[0]);
         return;
       }
@@ -296,9 +308,9 @@
       if (state.files.some((x) => x.path === rel && x.size === f.size)) continue;
       state.files.push({ id: ++uid, name: f.name, path: rel, size: f.size, file: f });
     }
-    // если иконки ещё не выбирали — подхватим icon.png из набора
+    // if the user has not chosen an icon yet, grab icon.png from the selection
     const ic = state.files.find((f) => /^icon\.png$/i.test(f.name));
-    if (ic && state.iconSource === 'generated') loadIconFromFile(ic.file, true);
+    if (ic && !state.iconTouched) loadIconFromFile(ic.file, true);
     renderFiles(); update();
   }
 
@@ -313,15 +325,15 @@
         <span class="fi-name" title="${esc(f.path)}">${esc(f.path)}</span>
         <span class="fi-size">${fmtSize(f.size)}</span>`;
       const btn = document.createElement('button');
-      btn.className = 'x'; btn.type = 'button'; btn.title = 'Убрать'; btn.textContent = '×';
+      btn.className = 'x'; btn.type = 'button'; btn.title = T('files.remove'); btn.textContent = '×';
       btn.onclick = () => { state.files = state.files.filter((x) => x.id !== f.id); renderFiles(); update(); };
       li.appendChild(btn);
       ul.appendChild(li);
     }
     const total = state.files.reduce((s, f) => s + f.size, 0);
     $('filesSummary').textContent = state.files.length
-      ? `${state.files.length} файл(ов) · ${fmtSize(total)}`
-      : 'Файлов нет';
+      ? T('files.count', { n: state.files.length, word: P('files.word', state.files.length), size: fmtSize(total) })
+      : T('files.none');
   }
 
   function fileIcon(n) {
@@ -332,7 +344,6 @@
     if (/\.(bundle|assets|unity3d)$/i.test(n)) return '🎮';
     return '📎';
   }
-  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   function installDir() {
     const v = $('installPath').value;
@@ -341,21 +352,30 @@
   }
 
   // ============================================================
-  // ИГРЫ / ПРЕСЕТЫ
+  // GAMES / PRESETS
   // ============================================================
-  function loaderLabel(l) {
-    return l === 'melonloader' ? 'MelonLoader' : l === 'bepinex' ? 'BepInEx' : l === 'northstar' ? 'Northstar' : 'без загрузчика';
-  }
+  const loaderLabel = (id) => T('loaders.' + (id || 'none'));
+
+  // every language's words, so the search works for both EN and RU queries
+  const searchIndex = ([key, g]) => {
+    const loaders = window.I18N.langs.map((l) => (window.I18N.dict[l].loaders[g.loader] || '')).join(' ');
+    return `${key} ${g.title} ${g.tags || ''} ${loaders} ${g.community || ''}`.toLowerCase();
+  };
 
   function renderGames() {
-    const box = $('games'); box.innerHTML = '';
+    const box = $('games');
+    box.innerHTML = '';
     const q = ($('gameSearch') ? $('gameSearch').value : '').trim().toLowerCase();
-    const entries = Object.entries(GAMES).filter(([key, g]) =>
-      !q || key.includes(q) || g.title.toLowerCase().includes(q) ||
-      (g.tags || '').includes(q) || loaderLabel(g.loader).toLowerCase().includes(q));
-    $('gameCount').textContent = q ? `${entries.length} из ${Object.keys(GAMES).length}` : `${Object.keys(GAMES).length} игр`;
+    const all = Object.entries(GAMES);
+    const entries = all.filter(([key, g]) => !q || searchIndex([key, g]).includes(q));
+    $('gameCount').textContent = q
+      ? T('game.countFiltered', { n: entries.length, m: all.length })
+      : T('game.countAll', { n: all.length, word: P('game.countAllWord', all.length) });
     if (!entries.length) {
-      box.innerHTML = '<div class="games-empty">Ничего не нашлось. Возьми профиль «Другая игра» — он универсальный.</div>';
+      const empty = document.createElement('div');
+      empty.className = 'games-empty';
+      empty.textContent = T('game.none');
+      box.appendChild(empty);
       return;
     }
     entries.forEach(([key, g]) => {
@@ -364,7 +384,7 @@
       b.className = 'game' + (key === state.game ? ' sel' : '');
       b.innerHTML = `<span class="g-emoji">${g.emoji}</span>
         <span class="g-meta"><span class="g-name">${esc(g.title)}</span>
-        <span class="g-loader">${loaderLabel(g.loader)}</span></span>`;
+        <span class="g-loader">${esc(loaderLabel(g.loader))}</span></span>`;
       b.onclick = () => selectGame(key, true);
       box.appendChild(b);
     });
@@ -372,15 +392,15 @@
 
   function renderPathOptions(keepValue) {
     const sel = $('installPath');
-    // важно: '' — валидное значение (корень архива), поэтому отличаем «нет значения» явно
+    // note: '' is a valid value (archive root), so “no value” is tracked explicitly
     const prev = keepValue !== undefined && keepValue !== null
       ? keepValue
       : (sel.options.length ? sel.value : null);
     const list = PATHS[game().loader] || PATHS.none;
     sel.innerHTML = '';
-    list.forEach(([val, label]) => {
+    list.forEach(([val, labelKey]) => {
       const o = document.createElement('option');
-      o.value = val; o.textContent = label;
+      o.value = val; o.textContent = T(labelKey);
       sel.appendChild(o);
     });
     sel.value = list.some(([v]) => v === prev) ? prev : list[0][0];
@@ -388,9 +408,16 @@
   }
 
   function renderDepPresets() {
-    const box = $('depPresets'); box.innerHTML = '';
+    const box = $('depPresets');
+    box.innerHTML = '';
     const list = game().deps;
-    if (!list.length) { box.innerHTML = '<span class="help">Для этого профиля пресетов нет — добавь зависимости вручную.</span>'; return; }
+    if (!list.length) {
+      const span = document.createElement('span');
+      span.className = 'help';
+      span.textContent = T('manifest.depPresetsNone');
+      box.appendChild(span);
+      return;
+    }
     list.forEach(([label, dep]) => {
       const b = document.createElement('button');
       b.type = 'button'; b.textContent = '+ ' + label; b.title = dep;
@@ -407,22 +434,22 @@
     renderDepPresets();
     $('loaderHint').textContent = loaderLabel(g.loader);
     $('gameLink').innerHTML = g.community
-      ? `Актуальные версии зависимостей — на странице коммьюнити: <a href="https://thunderstore.io/c/${g.community}/" target="_blank" rel="noopener">thunderstore.io/c/${g.community}</a>`
+      ? `${esc(T('game.community'))} <a href="https://thunderstore.io/c/${g.community}/" target="_blank" rel="noopener">thunderstore.io/c/${g.community}</a>`
       : '';
-    $('gameNote').innerHTML = g.note;
+    $('gameNote').innerHTML = window.I18N.gameNote(key);
     if (userAction) {
-      // убираем зависимости, подставленные прошлым пресетом, и ставим новые
+      // drop the dependencies the previous preset injected, add the new ones
       state.deps = state.deps.filter((d) => !state.autoDeps.includes(d));
       state.autoDeps = g.defaultDeps.slice();
       g.defaultDeps.forEach((d) => { if (!state.deps.includes(d)) state.deps.push(d); });
       renderDeps();
-      toast(`Профиль: ${g.title}`, 'ok');
+      toast(T('game.toast', { game: g.title }), 'ok');
     }
     update();
   }
 
   // ============================================================
-  // ИКОНКА
+  // ICON
   // ============================================================
   function drawGeneratedIcon() {
     const c = $('iconCanvas'), ctx = c.getContext('2d');
@@ -434,7 +461,7 @@
     g.addColorStop(1, shade(accent, -45));
     ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256);
 
-    // лёгкий узор
+    // light pattern
     ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 2;
     for (let i = -256; i < 256; i += 22) {
       ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + 256, 256); ctx.stroke();
@@ -442,18 +469,18 @@
     ctx.fillStyle = 'rgba(0,0,0,.22)';
     ctx.beginPath(); ctx.arc(200, 210, 110, 0, Math.PI * 2); ctx.fill();
 
-    // инициалы
+    // initials
     const parts = name.split(/[\s_\-]+/).filter(Boolean);
     const initials = (parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)).toUpperCase();
     ctx.fillStyle = '#fff';
-    ctx.font = '700 118px Inter, system-ui, sans-serif';
+    ctx.font = '700 118px system-ui, "Segoe UI", Arial, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 5;
     ctx.fillText(initials, 128, 120);
     ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
-    // подпись
-    ctx.font = '600 20px Inter, system-ui, sans-serif';
+    // caption
+    ctx.font = '600 20px system-ui, "Segoe UI", Arial, sans-serif';
     ctx.fillStyle = 'rgba(255,255,255,.85)';
     const short = name.length > 18 ? name.slice(0, 17) + '…' : name;
     ctx.fillText(short, 128, 210);
@@ -472,13 +499,14 @@
   }
 
   function loadIconFromFile(file, silent) {
-    if (!file || !/^image\//.test(file.type)) { if (!silent) toast('Нужен файл-картинка', 'err'); return; }
+    if (!file || !/^image\//.test(file.type)) { if (!silent) toast(T('icon.errImage'), 'err'); return; }
+    if (!silent) state.iconTouched = true;
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
       const c = $('iconCanvas'), ctx = c.getContext('2d');
       ctx.clearRect(0, 0, 256, 256);
-      // cover-кроп по центру
+      // centered cover-crop
       const s = Math.min(img.width, img.height);
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 256, 256);
@@ -487,7 +515,7 @@
       $('iconBadge').textContent = `256×256 ← ${img.width}×${img.height}`;
       commitCanvasIcon(true);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); toast('Не удалось прочитать картинку', 'err'); };
+    img.onerror = () => { URL.revokeObjectURL(url); toast(T('icon.errRead'), 'err'); };
     img.src = url;
   }
 
@@ -504,7 +532,8 @@
   }
 
   // ============================================================
-  // MANIFEST / ВАЛИДАЦИЯ
+  // MANIFEST / VALIDATION
+  // Messages are i18n keys — they are translated at render time.
   // ============================================================
   function buildManifest() {
     return {
@@ -536,56 +565,56 @@
     mark('name', !name || (NAME_RE.test(name) && name.length <= 128));
     mark('version', !ver || SEMVER_RE.test(ver));
 
-    if (!author) errors.push('Укажи автора / namespace — без него не собрать имя пакета.');
-    else if (!NAME_RE.test(author)) errors.push('В namespace можно только a-z A-Z 0-9 и _ (без пробелов и дефисов).');
+    if (!author) errors.push({ key: 'errs.noAuthor' });
+    else if (!NAME_RE.test(author)) errors.push({ key: 'errs.badAuthor' });
 
-    if (!name) errors.push('Укажи имя мода (поле name в манифесте).');
-    else if (!NAME_RE.test(name)) errors.push('В name можно только a-z A-Z 0-9 и _ . Пробел заменяй на _ .');
-    else if (name.length > 128) errors.push('name длиннее 128 символов.');
+    if (!name) errors.push({ key: 'errs.noName' });
+    else if (!NAME_RE.test(name)) errors.push({ key: 'errs.badName' });
+    else if (name.length > 128) errors.push({ key: 'errs.longName' });
 
-    if (!desc) errors.push('Описание обязательно (до 250 символов).');
-    else if (desc.length > 250) errors.push('Описание длиннее 250 символов.');
+    if (!desc) errors.push({ key: 'errs.noDesc' });
+    else if (desc.length > 250) errors.push({ key: 'errs.longDesc' });
 
-    if (!ver) errors.push('Укажи версию.');
-    else if (!SEMVER_RE.test(ver)) errors.push('Версия должна быть строго Major.Minor.Patch, например 1.0.0 (без v, без 4-й цифры, без лидирующих нулей).');
+    if (!ver) errors.push({ key: 'errs.noVersion' });
+    else if (!SEMVER_RE.test(ver)) errors.push({ key: 'errs.badVersion' });
 
-    if (site && !/^https?:\/\/\S+$/i.test(site)) errors.push('website_url должен начинаться с http:// или https:// (или быть пустым).');
+    if (site && !/^https?:\/\/\S+$/i.test(site)) errors.push({ key: 'errs.badWebsite' });
 
     const badDeps = state.deps.filter((d) => !DEP_RE.test(d));
-    if (badDeps.length) errors.push(`Некорректные зависимости: ${badDeps.join(', ')} — нужен формат Namespace-Name-1.0.0`);
-    if (new Set(state.deps).size !== state.deps.length) warns.push('В зависимостях есть дубликаты.');
+    if (badDeps.length) errors.push({ key: 'errs.badDeps', vars: { list: badDeps.join(', ') } });
+    if (new Set(state.deps).size !== state.deps.length) warns.push({ key: 'errs.dupDeps' });
 
-    if (!state.iconBlob) errors.push('Нет иконки icon.png.');
-    if (!readme) errors.push('README.md пустой — он показывается на странице мода.');
-    else if (readme.length < 80) warns.push('README очень короткий. Добавь описание, установку и настройки — так мод скачивают охотнее.');
+    if (!state.iconBlob) errors.push({ key: 'errs.noIcon' });
+    if (!readme) errors.push({ key: 'errs.noReadme' });
+    else if (readme.length < 80) warns.push({ key: 'errs.shortReadme' });
 
-    if (!state.files.length) warns.push('Не добавлено ни одного файла мода — архив будет только с метаданными (это ок для модпака).');
-    else if (!state.files.some((f) => /\.dll$/i.test(f.name))) warns.push('Среди файлов нет .dll — проверь, то ли ты загрузил.');
+    if (!state.files.length) warns.push({ key: 'errs.noFiles' });
+    else if (!state.files.some((f) => /\.dll$/i.test(f.name))) warns.push({ key: 'errs.noDll' });
 
-    if ($('installPath').value === 'custom' && !installDir()) errors.push('Выбрана своя папка, но путь не указан.');
+    if ($('installPath').value === 'custom' && !installDir()) errors.push({ key: 'errs.customPath' });
 
     if (game().loader === 'melonloader' && /^BepInEx/i.test(installDir())) {
-      warns.push('Игра на MelonLoader, а путь указан для BepInEx — скорее всего мод не загрузится.');
+      warns.push({ key: 'errs.wrongPathMelon' });
     }
     if (game().loader === 'bepinex' && /^(Mods|Plugins|UserLibs|UserData)$/i.test(installDir())) {
-      warns.push('Игра на BepInEx, а выбрана папка MelonLoader — проверь путь установки.');
+      warns.push({ key: 'errs.wrongPathBep' });
     }
 
     const total = state.files.reduce((s, f) => s + f.size, 0);
-    if (total > MAX_ZIP) errors.push('Суммарный размер больше 5 ГБ — лимит Thunderstore.');
+    if (total > MAX_ZIP) errors.push({ key: 'errs.tooBig' });
 
     const nameClash = state.files.some((f) => /^(manifest\.json|readme\.md|changelog\.md|icon\.png)$/i.test(f.path) && !installDir());
-    if (nameClash) warns.push('Один из файлов в корне называется как служебный (manifest.json / README.md / icon.png) — он будет перезаписан.');
+    if (nameClash) warns.push({ key: 'errs.nameClash' });
 
     if (!errors.length) {
-      oks.push(`Пакет валиден: ${zipBaseName()}.zip`);
+      oks.push({ key: 'errs.valid', vars: { name: zipBaseName() } });
       const g = game();
       if (g.loader === 'melonloader' && !state.deps.some((d) => /^LavaGang-MelonLoader-/.test(d))) {
-        warns.push(`Для ${g.title} в зависимости обычно добавляют LavaGang-MelonLoader — иначе менеджер не поставит загрузчик.`);
+        warns.push({ key: 'errs.melonDep', vars: { game: g.title } });
       } else if (g.loader === 'bepinex' && !state.deps.some((d) => /BepInExPack/i.test(d))) {
-        warns.push(`Для ${g.title} в зависимостях обычно нужен BepInExPack.`);
+        warns.push({ key: 'errs.bepDep', vars: { game: g.title } });
       } else if (!state.deps.length) {
-        warns.push('Зависимости не указаны — проверь, точно ли мод работает сам по себе.');
+        warns.push({ key: 'errs.noDeps' });
       }
     }
     return { errors, warns, oks };
@@ -593,17 +622,51 @@
 
   function mark(id, ok) { $(id).classList.toggle('bad', !ok); }
 
+  // ---------- readiness ----------
+  function manifestReady() {
+    const author = $('author').value.trim();
+    const name = $('name').value.trim();
+    const desc = $('description').value.trim();
+    const ver = $('version').value.trim();
+    return !!author && NAME_RE.test(author)
+      && !!name && NAME_RE.test(name) && name.length <= 128
+      && !!desc && desc.length <= 250
+      && SEMVER_RE.test(ver)
+      && state.deps.every((d) => DEP_RE.test(d));
+  }
+
+  function renderReadiness() {
+    const checks = [
+      ['files', state.files.length > 0],
+      ['manifest', manifestReady()],
+      ['icon', !!state.iconBlob],
+      ['readme', $('readme').value.trim().length > 0],
+    ];
+    let done = 0;
+    checks.forEach(([id, ok]) => {
+      $('step-' + id).classList.toggle('done', ok);
+      if (ok) done++;
+    });
+    $('readyBar').style.width = Math.round((done / checks.length) * 100) + '%';
+    $('readyCount').textContent = T('readiness.count', { done, total: checks.length });
+    const hint = $('readyHint');
+    const all = done === checks.length;
+    hint.classList.toggle('ready', all);
+    hint.textContent = all ? T('readiness.ready') : T('readiness.hint');
+  }
+
   // ============================================================
-  // РЕНДЕР
+  // RENDER
   // ============================================================
   function renderDeps() {
-    const ul = $('depList'); ul.innerHTML = '';
+    const ul = $('depList');
+    ul.innerHTML = '';
     state.deps.forEach((d, i) => {
       const li = document.createElement('li');
       if (!DEP_RE.test(d)) li.className = 'invalid';
       li.innerHTML = `<span title="${esc(d)}">${esc(d)}</span>`;
       const b = document.createElement('button');
-      b.className = 'x'; b.type = 'button'; b.textContent = '×';
+      b.className = 'x'; b.type = 'button'; b.textContent = '×'; b.title = T('files.remove');
       b.onclick = () => { state.deps.splice(i, 1); renderDeps(); update(); };
       li.appendChild(b);
       ul.appendChild(li);
@@ -611,9 +674,9 @@
   }
 
   function renderPreview() {
-    const author = $('author').value.trim() || 'Author';
-    const name = $('name').value.trim() || 'My_Awesome_Mod';
-    const desc = $('description').value.trim() || 'Короткое описание мода';
+    const author = $('author').value.trim() || T('manifest.authorPh');
+    const name = $('name').value.trim() || T('manifest.namePh');
+    const desc = $('description').value.trim() || T('manifest.descPh');
     const ver = $('version').value.trim() || '0.0.0';
 
     $('pgName').textContent = name.replace(/_/g, ' ');
@@ -627,7 +690,9 @@
 
     const md = state.activeDoc === 'changelog' && !$('readme').value
       ? $('changelog').value : $('readme').value;
-    const html = window.marked ? marked.parse(md || '*README пуст*', { breaks: true, gfm: true }) : esc(md);
+    const html = window.marked
+      ? marked.parse(md || T('preview.readmeEmpty'), { breaks: true, gfm: true })
+      : esc(md);
     $('pgReadme').innerHTML = window.DOMPurify ? DOMPurify.sanitize(html) : html;
 
     // json
@@ -660,44 +725,52 @@
     $('zipTree').innerHTML = lines.join('\n');
     $('treeName').textContent = zipBaseName() + '.zip';
     const total = state.files.reduce((s, f) => s + f.size, 0);
-    $('treeSize').textContent = '≈ ' + fmtSize(total + (state.iconBlob ? state.iconBlob.size : 0) + 2048);
+    $('treeSize').textContent = T('preview.approx', { size: fmtSize(total + (state.iconBlob ? state.iconBlob.size : 0) + 2048) });
   }
 
   function renderValidation() {
     const { errors, warns, oks } = validate();
-    const ul = $('issues'); ul.innerHTML = '';
+    const ul = $('issues');
+    ul.innerHTML = '';
     const add = (cls, icon, text) => {
       const li = document.createElement('li');
       li.className = cls;
       li.innerHTML = `<span>${icon}</span><span>${esc(text)}</span>`;
       ul.appendChild(li);
     };
-    errors.forEach((e) => add('err', '✕', e));
-    warns.forEach((w) => add('warn', '!', w));
-    oks.forEach((o) => add('ok', '✓', o));
-    if (!ul.children.length) add('ok', '✓', 'Всё в порядке.');
+    errors.forEach((e) => add('err', '✕', T(e.key, e.vars)));
+    warns.forEach((w) => add('warn', '!', T(w.key, w.vars)));
+    oks.forEach((o) => add('ok', '✓', T(o.key, o.vars)));
+    if (!ul.children.length) add('ok', '✓', T('validation.allGood'));
 
     const pill = $('statusPill');
-    if (errors.length) { pill.className = 'pill pill-err'; pill.textContent = `${errors.length} ошибк(и)`; }
-    else if (warns.length) { pill.className = 'pill pill-warn'; pill.textContent = `${warns.length} замечани(я)`; }
-    else { pill.className = 'pill pill-ok'; pill.textContent = 'Готово к загрузке'; }
+    if (errors.length) { pill.className = 'pill pill-err'; pill.textContent = T('validation.statusErr', { n: errors.length }); }
+    else if (warns.length) { pill.className = 'pill pill-warn'; pill.textContent = T('validation.statusWarn', { n: warns.length }); }
+    else { pill.className = 'pill pill-ok'; pill.textContent = T('validation.statusOk'); }
 
     $('btnDownload').disabled = errors.length > 0;
     $('zipName').textContent = zipBaseName() + '.zip';
     $('descCounter').textContent = `${$('description').value.length} / 250`;
   }
 
-  const update = debounce(() => { renderPreview(); renderValidation(); saveProfile(true); }, 120);
+  const update = debounce(() => {
+    renderPreview();
+    renderValidation();
+    renderReadiness();
+    saveProfile(true);
+  }, 120);
 
   // ============================================================
-  // СБОРКА ZIP
+  // BUILD ZIP
   // ============================================================
   async function buildZip() {
     const btn = $('btnDownload');
     const old = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<span>⏳ Собираю архив…</span><small>подожди секунду</small>';
+    btn.innerHTML = `<span>${esc(T('validation.downloading'))}</span><small>${esc(T('validation.downloadingWait'))}</small>`;
     try {
+      if (!window.JSZip) { toast(T('toast.jsMissing'), 'err'); return; }
+      if (!state.iconBlob) { toast(T('errs.noIcon'), 'err'); return; }
       const zip = new JSZip();
       zip.file('manifest.json', JSON.stringify(buildManifest(), null, 2));
       zip.file('README.md', $('readme').value);
@@ -718,10 +791,10 @@
       a.download = zipBaseName() + '.zip';
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-      toast(`Готово: ${a.download} (${fmtSize(blob.size)})`, 'ok');
+      toast(T('toast.zipDone', { name: a.download, size: fmtSize(blob.size) }), 'ok');
     } catch (e) {
       console.error(e);
-      toast('Ошибка при сборке архива: ' + e.message, 'err');
+      toast(T('toast.zipFail', { msg: e.message }), 'err');
     } finally {
       btn.innerHTML = old;
       renderValidation();
@@ -729,34 +802,34 @@
   }
 
   // ============================================================
-  // ИМПОРТ ГОТОВОГО ZIP
+  // IMPORT A READY ZIP
   // ============================================================
   const KNOWN_PREFIXES = ['BepInEx/plugins', 'BepInEx/patchers', 'BepInEx/config', 'Mods', 'Plugins', 'UserLibs', 'UserData', 'mods'];
 
   let importing = false;
   async function importZip(file) {
     if (importing) return;
-    if (!window.JSZip) { toast('JSZip ещё не загрузился, попробуй снова', 'err'); return; }
+    if (!window.JSZip) { toast(T('toast.noJsZip'), 'err'); return; }
     importing = true;
     try { await doImportZip(file); } finally { importing = false; }
   }
 
   async function doImportZip(file) {
-    toast('Читаю архив…');
+    toast(T('toast.importStart'));
     let zip;
     try { zip = await JSZip.loadAsync(file); }
-    catch (e) { toast('Это не zip-архив', 'err'); return; }
+    catch (e) { toast(T('toast.notZip'), 'err'); return; }
 
     const all = Object.values(zip.files).filter((f) => !f.dir);
     const manifestEntry = all.find((f) => /(^|\/)manifest\.json$/i.test(f.name));
-    if (!manifestEntry) { toast('В архиве нет manifest.json — это не Thunderstore-пакет', 'err'); return; }
-    const root = manifestEntry.name.replace(/manifest\.json$/i, '');   // '' или 'folder/'
-    const rel = (n) => n.startsWith(root) ? n.slice(root.length) : n;
+    if (!manifestEntry) { toast(T('toast.noManifest'), 'err'); return; }
+    const root = manifestEntry.name.replace(/manifest\.json$/i, '');   // '' or 'folder/'
+    const rel = (n) => (n.startsWith(root) ? n.slice(root.length) : n);
 
-    // манифест
+    // manifest
     let mf = {};
     try { mf = JSON.parse(await manifestEntry.async('string')); }
-    catch (e) { toast('manifest.json повреждён: ' + e.message, 'err'); return; }
+    catch (e) { toast(T('toast.manifestBroken', { msg: e.message }), 'err'); return; }
 
     $('name').value = mf.name || '';
     $('version').value = mf.version_number || '1.0.0';
@@ -765,37 +838,35 @@
     state.deps = Array.isArray(mf.dependencies) ? mf.dependencies.slice() : [];
     state.autoDeps = [];
 
-    // автор из имени файла Author-Name-1.0.0.zip
+    // author from the file name Author-Name-1.0.0.zip
     const m = (file.name || '').match(/^([A-Za-z0-9_]+)-([A-Za-z0-9_]+)-\d+\.\d+\.\d+\.zip$/i);
     if (m) $('author').value = m[1];
-    else if (state.deps.length && !$('author').value) { /* оставляем как есть */ }
 
-    // документы
+    // documents
     const readmeEntry = all.find((f) => rel(f.name).toLowerCase() === 'readme.md');
     if (readmeEntry) $('readme').value = await readmeEntry.async('string');
     const chEntry = all.find((f) => rel(f.name).toLowerCase() === 'changelog.md');
     if (chEntry) { $('changelog').value = await chEntry.async('string'); $('includeChangelog').checked = true; }
 
-    // иконка
+    // icon
     const iconEntry = all.find((f) => rel(f.name).toLowerCase() === 'icon.png');
     if (iconEntry) {
       const blob = await iconEntry.async('blob');
       loadIconFromFile(new File([blob], 'icon.png', { type: 'image/png' }), true);
     }
 
-    // остальные файлы
+    // everything else
     const rest = all.filter((f) => !/^(manifest\.json|readme\.md|changelog\.md|icon\.png)$/i.test(rel(f.name)));
     const paths = rest.map((f) => rel(f.name));
-    let prefix = KNOWN_PREFIXES
+    const prefix = KNOWN_PREFIXES
       .filter((p) => paths.length && paths.every((x) => x.toLowerCase().startsWith(p.toLowerCase() + '/')))
       .sort((a, b) => b.length - a.length)[0] || '';
 
-    // угадываем игру/загрузчик по структуре
+    // guess the game / loader from the structure
     if (prefix) {
       const loader = /^BepInEx/i.test(prefix) ? 'bepinex' : prefix === 'mods' ? 'northstar' : 'melonloader';
       if (game().loader !== loader) {
-        const key = Object.keys(GAMES).find((k) => GAMES[k].loader === loader && k === 'other')
-          || Object.keys(GAMES).find((k) => GAMES[k].loader === loader);
+        const key = Object.keys(GAMES).find((k) => GAMES[k].loader === loader);
         if (key) { state.game = key; renderGames(); renderDepPresets(); }
       }
     }
@@ -820,62 +891,95 @@
     selectGame(state.game, false);
     renderPathOptions(prefix);
     update();
-    toast(`Импортировано: ${mf.name || file.name} · ${rest.length} файл(ов)`, 'ok');
+    toast(T('toast.imported', {
+      name: mf.name || file.name,
+      n: rest.length,
+      word: P('files.word', rest.length),
+    }), 'ok');
   }
 
   // ============================================================
-  // ШАБЛОНЫ
+  // TEMPLATES — always English, no matter the interface language.
+  // Mod pages on Thunderstore are read worldwide; switching the
+  // UI language never rewrites these.
   // ============================================================
+  const loaderNameEN = (id) => window.I18N.dict.en.loaders[id] || 'no loader';
+
   function readmeTemplate() {
-    const name = ($('name').value.trim() || 'My_Awesome_Mod').replace(/_/g, ' ');
-    const desc = $('description').value.trim() || 'Короткое описание того, что делает мод.';
-    const g = game();
-    const deps = state.deps.length ? state.deps.map((d) => `- ${d}`).join('\n') : '- —';
+    const modId = $('name').value.trim() || 'My_Awesome_Mod';
+    const name = modId.replace(/_/g, ' ');
+    const author = $('author').value.trim() || 'Author';
+    const version = $('version').value.trim() || '1.0.0';
+    const desc = $('description').value.trim() || 'A short description of what this mod does.';
     const site = $('website').value.trim();
+    const g = game();
+    const deps = state.deps.length ? state.deps.map((d) => `- \`${d}\``).join('\n') : '- None';
     const melon = g.loader === 'melonloader';
-    const install = melon
-      ? `1. Установи [MelonLoader](https://thunderstore.io/c/${g.community || 'bonelab'}/p/LavaGang/MelonLoader/) и запусти игру один раз.
-2. Поставь мод через Thunderstore App / r2modman — или вручную положи \`.dll\` в папку \`Mods\` рядом с игрой.
-3. Запусти игру и проверь консоль MelonLoader — мод должен отметиться при загрузке.`
-      : `1. Установи [BepInEx](https://thunderstore.io/package/bbepis/BepInExPack/) и запусти игру один раз.
-2. Поставь мод через r2modman / Gale — или вручную положи \`.dll\` в \`BepInEx/plugins\`.
-3. Перезапусти игру, чтобы сгенерировался конфиг.`;
+
+    let install;
+    if (melon) {
+      install = [
+        `1. Install [MelonLoader](https://thunderstore.io/c/${g.community || 'bonelab'}/p/LavaGang/MelonLoader/) and launch the game once.`,
+        `2. Install this mod with the Thunderstore App / r2modman — or drop \`${modId}.dll\` into the \`Mods\` folder next to the game.`,
+        '3. Launch the game and check the MelonLoader console — the mod should show up while loading.',
+      ].join('\n');
+    } else if (g.loader === 'northstar') {
+      install = [
+        '1. Install [Northstar](https://thunderstore.io/c/northstar/p/Northstar/Northstar/).',
+        `2. Unpack the mod into \`mods/${author}.${modId}/\` next to \`NorthstarLauncher.exe\`.`,
+        '3. Launch the game through NorthstarLauncher.',
+      ].join('\n');
+    } else if (g.loader === 'none') {
+      install = [
+        '1. Unpack the archive into the game folder, or install it with your mod manager.',
+        '2. Keep the folder structure from this package.',
+        '3. Launch the game.',
+      ].join('\n');
+    } else {
+      install = [
+        '1. Install [BepInEx](https://thunderstore.io/package/BepInEx/BepInExPack/) and launch the game once.',
+        `2. Install this mod with r2modman / Gale — or drop \`${modId}.dll\` into \`BepInEx/plugins\`.`,
+        '3. Restart the game so the config file is generated.',
+      ].join('\n');
+    }
+
     const cfg = melon
-      ? `Конфиг появится здесь: \`UserData/${$('name').value.trim() || 'MyMod'}.cfg\``
-      : `Конфиг появится здесь: \`BepInEx/config/${$('author').value.trim() || 'Author'}.${$('name').value.trim() || 'MyMod'}.cfg\``;
+      ? `The config file appears at \`UserData/${modId}.cfg\`.`
+      : `The config file appears at \`BepInEx/config/${author}.${modId}.cfg\`.`;
+
     return `# ${name}
 
 ${desc}
 
-> Игра: **${g.title}** · загрузчик: **${melon ? 'MelonLoader' : g.loader === 'bepinex' ? 'BepInEx' : 'не требуется'}**
+> Game: **${g.title}** · Loader: **${loaderNameEN(g.loader)}** · Version: **${version}** · Author: **${author}**
 
-## ✨ Возможности
+## ✨ Features
 
-- Фича раз
-- Фича два
-- Фича три
+- Feature one
+- Feature two
+- Feature three
 
-## 📦 Установка
+## 📦 Installation
 
 ${install}
 
-## ⚙️ Настройка
+## ⚙️ Configuration
 
 ${cfg}
 
-| Параметр | По умолчанию | Описание |
+| Option | Default | Description |
 | --- | --- | --- |
-| Enabled | true | Включить мод |
+| Enabled | true | Enable or disable the mod |
 
-## 🔗 Зависимости
+## 🔗 Dependencies
 
 ${deps}
 
-## 🐞 Баги и предложения
+## 🐞 Bugs & Suggestions
 
-${site ? `Пиши в issues: ${site}` : 'Пиши в Discord или в issues репозитория.'}
+${site ? `Open an issue in the repository: ${site}` : 'Open an issue in the repository or ping me on Discord.'}
 
-## 📜 Лицензия
+## 📜 License
 
 MIT
 `;
@@ -889,7 +993,7 @@ MIT
 ## ${v} — ${d}
 
 ### Added
-- Первый релиз 🎉
+- First release 🎉
 
 ### Fixed
 - —
@@ -897,7 +1001,7 @@ MIT
   }
 
   // ============================================================
-  // ПРОФИЛЬ (localStorage)
+  // PROFILE (localStorage)
   // ============================================================
   function saveProfile(quiet) {
     try {
@@ -910,8 +1014,8 @@ MIT
         accent: state.accent, game: state.game, autoDeps: state.autoDeps,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      if (!quiet) toast('Профиль сохранён в браузере', 'ok');
-    } catch (_) { /* приват-режим */ }
+      if (!quiet) toast(T('toast.profileSaved'), 'ok');
+    } catch (_) { /* private mode */ }
   }
 
   function loadProfile() {
@@ -939,7 +1043,7 @@ MIT
   }
 
   // ============================================================
-  // ИНИЦИАЛИЗАЦИЯ UI
+  // UI INIT
   // ============================================================
   function initDropzone(zone, input, handler) {
     zone.addEventListener('click', () => input.click());
@@ -947,19 +1051,42 @@ MIT
     input.addEventListener('change', () => { handler(input.files); input.value = ''; });
     ['dragenter', 'dragover'].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add('drag'); }));
     ['dragleave', 'drop'].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove('drag'); }));
-    zone.addEventListener('drop', (e) => { if (e.dataTransfer?.files?.length) handler(e.dataTransfer.files); });
+    zone.addEventListener('drop', (e) => { if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) handler(e.dataTransfer.files); });
+  }
+
+  function renderAll() {
+    renderGames();
+    renderPathOptions(undefined);
+    renderDepPresets();
+    renderDeps();
+    renderFiles();
+    renderPreview();
+    renderValidation();
+    renderReadiness();
   }
 
   function init() {
-    if (init._done) return;      // защита от повторной инициализации
+    if (init._done) return;      // guard against double init
     init._done = true;
-    // палитра
+
+    window.I18N.apply(document);
+    renderThemeButton();
+    renderLangSwitch();
+
+    // header controls
+    $('btnTheme').onclick = () => setTheme(currentTheme() === 'dark' ? 'light' : 'dark', true);
+    document.querySelectorAll('#langSwitch button').forEach((b) => {
+      b.onclick = () => switchLang(b.dataset.lang);
+    });
+
+    // accent palette
     PALETTE.forEach((c) => {
       const s = document.createElement('div');
       s.className = 'swatch' + (c === state.accent ? ' sel' : '');
       s.style.background = c;
       s.onclick = () => {
         state.accent = c;
+        state.iconTouched = true;
         document.querySelectorAll('.swatch').forEach((x) => x.classList.remove('sel'));
         s.classList.add('sel');
         drawGeneratedIcon();
@@ -971,8 +1098,9 @@ MIT
     $('btnPickFolder').onclick = (e) => { e.stopPropagation(); $('folderInput').click(); };
     $('folderInput').addEventListener('change', () => { addFiles($('folderInput').files); $('folderInput').value = ''; });
     initDropzone($('iconDrop'), $('iconInput'), (fl) => loadIconFromFile(fl[0]));
+    $('btnGenIcon').onclick = () => { state.iconTouched = true; drawGeneratedIcon(); };
 
-    // поля
+    // fields
     ['author', 'name', 'description', 'version', 'website', 'readme', 'changelog'].forEach((id) => {
       $(id).addEventListener('input', update);
     });
@@ -984,7 +1112,7 @@ MIT
     });
     $('customPath').addEventListener('input', update);
 
-    // зависимости
+    // dependencies
     const addDep = () => {
       const raw = $('depInput').value.trim();
       if (!raw) return;
@@ -995,7 +1123,7 @@ MIT
     $('btnAddDep').onclick = addDep;
     $('depInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addDep(); } });
 
-    // версия
+    // version bumpers
     const bump = (idx) => {
       const p = ($('version').value.trim().match(SEMVER_RE) || [, '0', '0', '0']).slice(1).map(Number);
       p[idx]++; for (let i = idx + 1; i < 3; i++) p[i] = 0;
@@ -1004,33 +1132,35 @@ MIT
     $('bumpPatch').onclick = () => bump(2);
     $('bumpMinor').onclick = () => bump(1);
 
-    // табы документов
-    document.querySelectorAll('#docTabs .tab').forEach((t) => {
-      t.onclick = () => {
+    // document tabs
+    document.querySelectorAll('#docTabs .tab').forEach((tab) => {
+      tab.onclick = () => {
         document.querySelectorAll('#docTabs .tab').forEach((x) => x.classList.remove('active'));
-        t.classList.add('active');
-        state.activeDoc = t.dataset.doc;
+        tab.classList.add('active');
+        state.activeDoc = tab.dataset.doc;
         $('readme').classList.toggle('hidden', state.activeDoc !== 'readme');
         $('changelog').classList.toggle('hidden', state.activeDoc !== 'changelog');
       };
     });
-    // табы превью
-    document.querySelectorAll('#prevTabs .tab').forEach((t) => {
-      t.onclick = () => {
+    // preview tabs
+    document.querySelectorAll('#prevTabs .tab').forEach((tab) => {
+      tab.onclick = () => {
         document.querySelectorAll('#prevTabs .tab').forEach((x) => x.classList.remove('active'));
-        t.classList.add('active');
-        ['page', 'card', 'tree', 'json'].forEach((p) => $('pane-' + p).classList.toggle('hidden', p !== t.dataset.prev));
+        tab.classList.add('active');
+        ['page', 'card', 'tree', 'json'].forEach((pane) => $('pane-' + pane).classList.toggle('hidden', pane !== tab.dataset.prev));
       };
     });
 
     $('btnTemplate').onclick = () => {
+      // templates stay English on purpose — see readmeTemplate()
       if (state.activeDoc === 'changelog') {
         $('changelog').value = changelogTemplate();
         $('includeChangelog').checked = true;
       } else {
         $('readme').value = readmeTemplate();
       }
-      update(); toast('Шаблон вставлен', 'ok');
+      update();
+      toast(T('toast.template'), 'ok');
     };
 
     $('gameSearch').addEventListener('input', renderGames);
@@ -1043,20 +1173,20 @@ MIT
     $('btnDownload').onclick = buildZip;
     $('btnSaveProfile').onclick = () => saveProfile(false);
     $('btnCopyManifest').onclick = async () => {
-      try { await navigator.clipboard.writeText(JSON.stringify(buildManifest(), null, 2)); toast('manifest.json скопирован', 'ok'); }
-      catch (_) { toast('Буфер обмена недоступен', 'err'); }
+      try { await navigator.clipboard.writeText(JSON.stringify(buildManifest(), null, 2)); toast(T('toast.manifestCopied'), 'ok'); }
+      catch (_) { toast(T('toast.clipboardFail'), 'err'); }
     };
     $('btnReset').onclick = () => {
-      if (!confirm('Очистить все поля и файлы?')) return;
+      if (!confirm(T('toast.resetConfirm'))) return;
       localStorage.removeItem(STORAGE_KEY);
       location.reload();
     };
 
-    // глобальный dnd — чтобы браузер не открывал файл
+    // global dnd — keep the browser from opening dropped files
     window.addEventListener('dragover', (e) => e.preventDefault());
     window.addEventListener('drop', (e) => e.preventDefault());
 
-    // стартовые значения
+    // initial values
     const restored = loadProfile();
     if (!restored) {
       selectGame('bonelab', false);
@@ -1067,10 +1197,14 @@ MIT
       $('changelog').value = changelogTemplate();
     }
     drawGeneratedIcon();
-    renderFiles();
-    renderDeps();
-    renderPreview();
-    renderValidation();
+    renderAll();
+
+    // re-render all dynamic content when the language changes;
+    // the markdown editors are intentionally left untouched
+    window.I18N.onChange(() => {
+      renderAll();
+      renderThemeButton();
+    });
   }
 
   document.addEventListener('DOMContentLoaded', init);
