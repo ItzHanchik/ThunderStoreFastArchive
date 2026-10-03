@@ -109,6 +109,7 @@
     accent: PALETTE[0],
     activeDoc: 'readme',
     game: 'bonelab',
+    autoDeps: [],   // зависимости, подставленные пресетом игры
   };
   const game = () => GAMES[state.game] || GAMES.other;
   let uid = 0;
@@ -205,7 +206,10 @@
 
   function renderPathOptions(keepValue) {
     const sel = $('installPath');
-    const prev = keepValue || sel.value;
+    // важно: '' — валидное значение (корень архива), поэтому отличаем «нет значения» явно
+    const prev = keepValue !== undefined && keepValue !== null
+      ? keepValue
+      : (sel.options.length ? sel.value : null);
     const list = PATHS[game().loader] || PATHS.none;
     sel.innerHTML = '';
     list.forEach(([val, label]) => {
@@ -238,7 +242,9 @@
     $('loaderHint').textContent = g.loader === 'melonloader' ? 'MelonLoader' : g.loader === 'bepinex' ? 'BepInEx 5' : 'без загрузчика';
     $('gameNote').innerHTML = g.note;
     if (userAction) {
-      // подставляем базовые зависимости загрузчика, не трогая пользовательские
+      // убираем зависимости, подставленные прошлым пресетом, и ставим новые
+      state.deps = state.deps.filter((d) => !state.autoDeps.includes(d));
+      state.autoDeps = g.defaultDeps.slice();
       g.defaultDeps.forEach((d) => { if (!state.deps.includes(d)) state.deps.push(d); });
       renderDeps();
       toast(`Профиль: ${g.title}`, 'ok');
@@ -637,7 +643,7 @@ MIT
         readme: $('readme').value, changelog: $('changelog').value,
         includeChangelog: $('includeChangelog').checked,
         installPath: $('installPath').value, customPath: $('customPath').value,
-        accent: state.accent, game: state.game,
+        accent: state.accent, game: state.game, autoDeps: state.autoDeps,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       if (!quiet) toast('Профиль сохранён в браузере', 'ok');
@@ -659,6 +665,7 @@ MIT
     $('includeChangelog').checked = !!d.includeChangelog;
     state.deps = Array.isArray(d.deps) ? d.deps : [];
     state.accent = d.accent || PALETTE[0];
+    state.autoDeps = Array.isArray(d.autoDeps) ? d.autoDeps : [];
     selectGame(state.game, false);
     renderPathOptions(d.installPath);
     $('customPath').value = d.customPath || '';
@@ -781,6 +788,7 @@ MIT
     if (!restored) {
       selectGame('bonelab', false);
       state.deps = GAMES.bonelab.defaultDeps.slice();
+      state.autoDeps = GAMES.bonelab.defaultDeps.slice();
       renderDeps();
       $('readme').value = readmeTemplate();
       $('changelog').value = changelogTemplate();

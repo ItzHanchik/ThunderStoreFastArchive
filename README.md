@@ -6,6 +6,7 @@
 
 ## Возможности
 
+- 🎮 **Пресеты игр в один клик** — BONELAB, BONEWORKS, Lethal Company, R.E.P.O., Valheim, Risk of Rain 2, «другая игра» и «без загрузчика». Пресет подставляет путь установки, зависимости загрузчика и шаблон README
 - 🧩 **Drag & drop** любых файлов и целых папок (`.dll`, конфиги, бандлы)
 - 📂 Выбор места установки внутри архива: `BepInEx/plugins`, корень, `BepInEx/patchers` или свой путь
 - 📝 Форма `manifest.json` с живой валидацией по правилам Thunderstore
@@ -14,6 +15,20 @@
 - 📄 Редактор `README.md` / `CHANGELOG.md` с шаблонами и markdown-превью
 - 👀 Превью: страница мода, карточка в списке, дерево содержимого zip, готовый `manifest.json`
 - 💾 Автосохранение профиля в `localStorage` + бамп версии в один клик
+
+## Пресеты игр
+
+| Игра | Загрузчик | Папка по умолчанию | Базовые зависимости |
+| --- | --- | --- | --- |
+| BONELAB | MelonLoader | `Mods/` | `LavaGang-MelonLoader-0.6.6`, `gnonme-BoneLib-3.1.3` |
+| BONEWORKS | MelonLoader 0.5.7 | `Mods/` | `LavaGang-MelonLoader-0.5.7` |
+| Lethal Company | BepInEx 5 | `BepInEx/plugins/` | `BepInEx-BepInExPack-5.4.2100` |
+| R.E.P.O. | BepInEx 5 | `BepInEx/plugins/` | `BepInEx-BepInExPack-5.4.2100` |
+| Valheim | BepInEx 5 | `BepInEx/plugins/` | `denikson-BepInExPack_Valheim-5.4.2202` |
+| Risk of Rain 2 | BepInEx 5 | `BepInEx/plugins/` | `bbepis-BepInExPack-5.4.2113` |
+| Без загрузчика | — | корень zip | — |
+
+Для MelonLoader доступны `Mods/`, `Plugins/`, `UserLibs/`, `UserData/` — менеджер модов разложит их в `Mods/<Author-ModName>/` и `UserData/<Author-ModName>/`. Для BepInEx — `BepInEx/plugins`, `BepInEx/patchers`, `BepInEx/config`. Версии зависимостей можно поправить вручную — пресет лишь подставляет актуальные на момент сборки.
 
 ## Правила Thunderstore, которые проверяет инструмент
 
@@ -48,6 +63,12 @@
 python3 -m http.server 8000
 # открыть http://localhost:8000
 ```
+
+## GitHub Pages
+
+В репозитории лежит workflow `.github/workflows/deploy-pages.yml`, который публикует сайт на GitHub Pages при пуше.
+
+Один раз нужно включить Pages вручную: **Settings → Pages → Build and deployment → Source: GitHub Actions**. После этого сайт будет доступен по адресу `https://itzhanchik.github.io/ThunderStoreFastArchive/`, а каждый пуш в `main` будет его обновлять.
 
 ## Структура
 
