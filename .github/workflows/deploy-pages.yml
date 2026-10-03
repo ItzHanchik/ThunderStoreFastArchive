@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - arena/01a1018f-thunderstorefastarchive
   workflow_dispatch:
 
 permissions:
