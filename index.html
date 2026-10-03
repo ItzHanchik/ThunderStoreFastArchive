@@ -23,6 +23,8 @@
   </div>
   <div class="topbar-actions">
     <span class="pill pill-ok" id="privacyPill" title="Ничего не уходит на сервер">🔒 100% локально</span>
+    <button class="btn ghost" id="btnImport" type="button">📥 Импорт zip</button>
+    <input type="file" id="zipInput" accept=".zip,application/zip" hidden />
     <button class="btn ghost" id="btnReset" type="button">Сбросить</button>
     <a class="btn ghost" href="https://thunderstore.io/package/create/docs/" target="_blank" rel="noopener">Правила ↗</a>
   </div>
@@ -37,8 +39,13 @@
         <h2>1. Игра и загрузчик</h2>
         <span class="hint" id="loaderHint">—</span>
       </div>
+      <div class="search-row">
+        <input type="text" id="gameSearch" placeholder="🔍 Поиск игры: bonelab, lethal, valheim…" autocomplete="off" />
+        <span class="hint" id="gameCount"></span>
+      </div>
       <div class="games" id="games"></div>
       <p class="help" id="gameNote">Выбор игры подставит правильную папку установки, зависимости и шаблон README.</p>
+      <p class="help" id="gameLink"></p>
     </div>
 
     <div class="card">
@@ -50,7 +57,7 @@
       <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Загрузить файлы мода">
         <div class="dz-icon">📦</div>
         <div class="dz-title">Перетащи сюда <b>.dll</b> (или любые файлы / папку)</div>
-        <div class="dz-sub">или нажми, чтобы выбрать</div>
+        <div class="dz-sub">или нажми, чтобы выбрать · готовый <b>.zip</b> мода импортируется целиком</div>
         <input type="file" id="fileInput" multiple hidden />
         <input type="file" id="folderInput" webkitdirectory directory multiple hidden />
       </div>

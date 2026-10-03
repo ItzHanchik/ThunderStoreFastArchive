@@ -6,7 +6,8 @@
 
 ## Возможности
 
-- 🎮 **Пресеты игр в один клик** — BONELAB, BONEWORKS, Lethal Company, R.E.P.O., Valheim, Risk of Rain 2, «другая игра» и «без загрузчика». Пресет подставляет путь установки, зависимости загрузчика и шаблон README
+- 🎮 **Каталог из 30+ игр с поиском** — BONELAB, BONEWORKS, Lethal Company, R.E.P.O., PEAK, Content Warning, ULTRAKILL, Risk of Rain 2, Valheim, V Rising, Schedule I, RUMBLE, Northstar и другие. Пресет подставляет путь установки, зависимости загрузчика и шаблон README
+- 📥 **Импорт готового zip** — закинь существующий пакет, и форма заполнится из `manifest.json`, README, CHANGELOG и иконки, а файлы и путь установки определятся автоматически (удобно для выпуска новой версии)
 - 🧩 **Drag & drop** любых файлов и целых папок (`.dll`, конфиги, бандлы)
 - 📂 Выбор места установки внутри архива: `BepInEx/plugins`, корень, `BepInEx/patchers` или свой путь
 - 📝 Форма `manifest.json` с живой валидацией по правилам Thunderstore
@@ -26,7 +27,12 @@
 | R.E.P.O. | BepInEx 5 | `BepInEx/plugins/` | `BepInEx-BepInExPack-5.4.2100` |
 | Valheim | BepInEx 5 | `BepInEx/plugins/` | `denikson-BepInExPack_Valheim-5.4.2202` |
 | Risk of Rain 2 | BepInEx 5 | `BepInEx/plugins/` | `bbepis-BepInExPack-5.4.2113` |
-| Без загрузчика | — | корень zip | — |
+| Schedule I, RUMBLE, Hard Bullet, Backpack Hero, Patch Quest | MelonLoader | `Mods/` | `LavaGang-MelonLoader-0.7.3` |
+| PEAK, Content Warning, ULTRAKILL, DSP, Outward, ROUNDS, Muck, Timberborn, Inscryption, Raft, Gorilla Tag и др. | BepInEx 5 | `BepInEx/plugins/` | `BepInEx-BepInExPack-5.4.2100` |
+| Titanfall 2 · Northstar | Northstar | `mods/` | — |
+| Deep Rock Galactic, Palworld, «Без загрузчика» | — | корень zip | — |
+
+Всего 34 профиля, поиск работает и по русским словам («боунлаб», «вальхейм»), и по названию загрузчика («melon»).
 
 Для MelonLoader доступны `Mods/`, `Plugins/`, `UserLibs/`, `UserData/` — менеджер модов разложит их в `Mods/<Author-ModName>/` и `UserData/<Author-ModName>/`. Для BepInEx — `BepInEx/plugins`, `BepInEx/patchers`, `BepInEx/config`. Версии зависимостей можно поправить вручную — пресет лишь подставляет актуальные на момент сборки.
 
@@ -68,7 +74,7 @@ python3 -m http.server 8000
 
 В репозитории лежит workflow `.github/workflows/deploy-pages.yml`, который публикует сайт на GitHub Pages при пуше.
 
-Один раз нужно включить Pages вручную: **Settings → Pages → Build and deployment → Source: GitHub Actions**. После этого сайт будет доступен по адресу `https://itzhanchik.github.io/ThunderStoreFastArchive/`, а каждый пуш в `main` будет его обновлять.
+Pages уже включены (источник — GitHub Actions). Сайт доступен по адресу **https://itzhanchik.github.io/ThunderStoreFastArchive/** и обновляется при каждом пуше в `main`.
 
 ## Структура
 
