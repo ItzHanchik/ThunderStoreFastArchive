@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Thunderstore Fast Archive — быстрая сборка мод-архива</title>
+<meta name="description" content="Собери валидный Thunderstore-архив за минуту: закинь DLL, заполни поля, посмотри превью страницы мода и скачай готовый zip." />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="bg-glow" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">⚡</div>
+    <div>
+      <div class="brand-title">Thunderstore <span>Fast Archive</span></div>
+      <div class="brand-sub">Собери валидный мод-пакет за минуту — прямо в браузере</div>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <span class="pill pill-ok" id="privacyPill" title="Ничего не уходит на сервер">🔒 100% локально</span>
+    <button class="btn ghost" id="btnReset" type="button">Сбросить</button>
+    <a class="btn ghost" href="https://thunderstore.io/package/create/docs/" target="_blank" rel="noopener">Правила ↗</a>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- ======================= ЛЕВАЯ КОЛОНКА: ФОРМА ======================= -->
+  <section class="col col-form">
+
+    <div class="card">
+      <div class="card-head">
+        <h2>1. Файлы мода</h2>
+        <span class="hint">DLL и всё остальное</span>
+      </div>
+
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Загрузить файлы мода">
+        <div class="dz-icon">📦</div>
+        <div class="dz-title">Перетащи сюда <b>.dll</b> (или любые файлы / папку)</div>
+        <div class="dz-sub">или нажми, чтобы выбрать</div>
+        <input type="file" id="fileInput" multiple hidden />
+        <input type="file" id="folderInput" webkitdirectory directory multiple hidden />
+      </div>
+      <div class="dz-row">
+        <button class="btn tiny ghost" type="button" id="btnPickFolder">📁 Выбрать папку</button>
+        <span class="hint" id="filesSummary">Файлов нет</span>
+      </div>
+
+      <div class="field">
+        <label for="installPath">Куда класть файлы внутри архива</label>
+        <select id="installPath">
+          <option value="BepInEx/plugins">BepInEx/plugins/ — классика для BepInEx-модов</option>
+          <option value="">Корень архива — файлы рядом с manifest.json</option>
+          <option value="plugins">plugins/</option>
+          <option value="patchers">BepInEx/patchers/ (preloader-патчеры)</option>
+          <option value="custom">Своя папка…</option>
+        </select>
+        <input type="text" id="customPath" class="mt8 hidden" placeholder="например: BepInEx/plugins/MyMod" />
+        <p class="help">Менеджеры модов (r2modman / Gale) раскладывают файлы по этим правилам. Если не уверен — оставь <code>BepInEx/plugins</code>.</p>
+      </div>
+
+      <ul class="filelist" id="fileList"></ul>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>2. Манифест</h2>
+        <span class="hint">manifest.json</span>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="author">Автор / namespace <b class="req">*</b></label>
+          <input type="text" id="author" placeholder="YourTeamName" autocomplete="off" />
+          <p class="help">Как называется твоя команда на Thunderstore. Входит в имя файла архива.</p>
+        </div>
+        <div class="field">
+          <label for="name">Имя мода <b class="req">*</b></label>
+          <input type="text" id="name" placeholder="My_Awesome_Mod" autocomplete="off" />
+          <p class="help">Только <code>a-z A-Z 0-9 _</code>, без пробелов, до 128 символов.</p>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="description">Короткое описание <b class="req">*</b> <span class="counter" id="descCounter">0 / 250</span></label>
+        <textarea id="description" rows="2" maxlength="250" placeholder="Что делает мод — одной строкой"></textarea>
+      </div>
+
+      <div class="grid3">
+        <div class="field">
+          <label for="version">Версия <b class="req">*</b></label>
+          <div class="ver-row">
+            <input type="text" id="version" placeholder="1.0.0" value="1.0.0" />
+            <button class="btn tiny" type="button" id="bumpPatch" title="Увеличить patch">+patch</button>
+            <button class="btn tiny" type="button" id="bumpMinor" title="Увеличить minor">+minor</button>
+          </div>
+        </div>
+        <div class="field span2">
+          <label for="website">Сайт / репозиторий</label>
+          <input type="text" id="website" placeholder="https://github.com/user/repo" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Зависимости</label>
+        <div class="dep-presets" id="depPresets"></div>
+        <div class="dep-add">
+          <input type="text" id="depInput" placeholder="Namespace-Name-1.0.0" />
+          <button class="btn" type="button" id="btnAddDep">Добавить</button>
+        </div>
+        <ul class="deplist" id="depList"></ul>
+        <p class="help">Формат строгий: <code>Namespace-Name-Major.Minor.Patch</code>. Эти моды менеджер поставит автоматически.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>3. Иконка</h2>
+        <span class="hint">icon.png · ровно 256×256</span>
+      </div>
+      <div class="icon-row">
+        <div class="icon-preview" id="iconPreview">
+          <canvas id="iconCanvas" width="256" height="256"></canvas>
+          <span class="icon-badge" id="iconBadge">256×256</span>
+        </div>
+        <div class="icon-controls">
+          <div class="dropzone small" id="iconDrop" tabindex="0" role="button">
+            <div>🖼️ Перетащи картинку или нажми</div>
+            <div class="dz-sub">PNG / JPG / WEBP — обрежем и ужмём до 256×256</div>
+            <input type="file" id="iconInput" accept="image/*" hidden />
+          </div>
+          <div class="icon-gen">
+            <span class="help">Нет картинки? Сгенерируем из названия:</span>
+            <div class="swatches" id="swatches"></div>
+            <button class="btn tiny ghost" type="button" id="btnGenIcon">🎲 Сгенерировать иконку</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>4. README и CHANGELOG</h2>
+        <span class="hint">markdown</span>
+      </div>
+      <div class="tabs" id="docTabs">
+        <button class="tab active" data-doc="readme" type="button">README.md</button>
+        <button class="tab" data-doc="changelog" type="button">CHANGELOG.md <span class="opt">опц.</span></button>
+      </div>
+      <div class="editor-tools">
+        <button class="btn tiny ghost" type="button" id="btnTemplate">Вставить шаблон</button>
+        <label class="switch"><input type="checkbox" id="includeChangelog" /> <span>Класть CHANGELOG в архив</span></label>
+      </div>
+      <textarea id="readme" class="code" rows="16" spellcheck="false"></textarea>
+      <textarea id="changelog" class="code hidden" rows="16" spellcheck="false"></textarea>
+    </div>
+  </section>
+
+  <!-- ======================= ПРАВАЯ КОЛОНКА: ПРЕВЬЮ ======================= -->
+  <aside class="col col-preview">
+    <div class="sticky">
+
+      <div class="card validation" id="validationCard">
+        <div class="card-head">
+          <h2>Проверка</h2>
+          <span class="pill" id="statusPill">—</span>
+        </div>
+        <ul class="issues" id="issues"></ul>
+        <div class="actions">
+          <button class="btn primary big" id="btnDownload" type="button" disabled>
+            <span>⬇️ Скачать архив</span>
+            <small id="zipName">—</small>
+          </button>
+          <div class="actions-row">
+            <button class="btn ghost tiny" type="button" id="btnCopyManifest">Копировать manifest.json</button>
+            <button class="btn ghost tiny" type="button" id="btnSaveProfile">Сохранить профиль</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card preview">
+        <div class="tabs" id="prevTabs">
+          <button class="tab active" data-prev="page" type="button">Страница мода</button>
+          <button class="tab" data-prev="card" type="button">Карточка</button>
+          <button class="tab" data-prev="tree" type="button">Содержимое zip</button>
+          <button class="tab" data-prev="json" type="button">manifest.json</button>
+        </div>
+
+        <div class="prev-pane" id="pane-page">
+          <div class="ts-page">
+            <div class="ts-header">
+              <img id="pgIcon" alt="icon" />
+              <div class="ts-headmeta">
+                <h3 id="pgName">My_Awesome_Mod</h3>
+                <div class="ts-by">by <span id="pgAuthor">Author</span></div>
+                <div class="ts-desc" id="pgDesc">Короткое описание мода</div>
+                <div class="ts-chips">
+                  <span class="chip" id="pgVer">v1.0.0</span>
+                  <span class="chip">⬇ 0</span>
+                  <span class="chip">♥ 0</span>
+                </div>
+              </div>
+            </div>
+            <div class="ts-tabs"><span class="active">Details</span><span>Versions</span><span>Changelog</span><span>Wiki</span></div>
+            <div class="ts-body markdown" id="pgReadme"></div>
+          </div>
+        </div>
+
+        <div class="prev-pane hidden" id="pane-card">
+          <div class="ts-cards">
+            <article class="ts-card">
+              <img id="cardIcon" alt="icon" />
+              <div class="ts-card-body">
+                <h4 id="cardName">My_Awesome_Mod</h4>
+                <div class="ts-card-by" id="cardAuthor">Author</div>
+                <p id="cardDesc">Короткое описание мода</p>
+              </div>
+              <div class="ts-card-foot"><span>⬇ 0</span><span>♥ 0</span><span id="cardVer">1.0.0</span></div>
+            </article>
+          </div>
+          <p class="help center">Так мод выглядит в списке на Thunderstore и в менеджере модов.</p>
+        </div>
+
+        <div class="prev-pane hidden" id="pane-tree">
+          <div class="tree-head"><span id="treeName">package.zip</span><span id="treeSize">—</span></div>
+          <pre class="tree" id="zipTree"></pre>
+        </div>
+
+        <div class="prev-pane hidden" id="pane-json">
+          <pre class="code-view" id="jsonView"></pre>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+</main>
+
+<footer class="footer">
+  <span>Файлы не покидают браузер — архив собирается локально через JSZip.</span>
+  <span class="dot">•</span>
+  <a href="https://wiki.thunderstore.io/mods/creating-a-package" target="_blank" rel="noopener">Thunderstore Wiki</a>
+  <span class="dot">•</span>
+  <a href="https://thunderstore.io/tools/manifest-v1-validator/" target="_blank" rel="noopener">Manifest Validator</a>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
